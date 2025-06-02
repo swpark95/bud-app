@@ -171,10 +171,10 @@ body {
 
 .scan-border {
   position: absolute;
-  top: 35%;            /* 컨테이너(300px)의 35% 지점에서 시작 → (300 * 0.35 ≒ 105px) */
+  top: 15%;            /* 컨테이너(300px)의 35% 지점에서 시작 → (300 * 0.35 ≒ 105px) */
   left: 10%;           /* 컨테이너 너비의 10% 지점에서 시작 */
   width: 80%;          /* 가로 너비 80% */
-  height: 30%;         /* 세로 높이 30% → (300 * 0.30 = 90px) */
+  height: 70%;         /* 세로 높이 30% → (300 * 0.30 = 90px) */
   border: 2px solid yellow;
   box-sizing: border-box;
   pointer-events: none; /* 클릭 이벤트는 투과되게 */
