@@ -74,6 +74,7 @@ export default function InboundScan() {
     });
   }, []);
   // ────────────────────────────────────────────────────────────────────────
+  
 
   // 7) 바코드 인식 성공 시 호출되는 콜백
   const handleDetected = useCallback(
@@ -191,10 +192,19 @@ export default function InboundScan() {
       <div className="inbound-scan__content">
         {/* 1) 카메라 영역 */}
         <div className="inbound-scan__camera">
-          <BarcodeScanner
-            onDetected={handleDetected}
-            onError={handleError}
-          />
+          {/* 실제 비디오(카메라) */}
+          <div className="barcode-scanner__wrapper">
+            <BarcodeScanner
+              onDetected={handleDetected}
+              onError={handleError}
+            />
+          </div>
+
+          {/* 2) 반투명 마스크(화면 전체를 어둡게, 중앙만 뚫음) */}
+          <div className="scan-mask"></div>
+
+          {/* 3) 노란색 사각형 테두리 */}
+          <div className="scan-border"></div>
         </div>
 
         {/* 2) 스캔된 항목 리스트 */}
