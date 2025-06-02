@@ -25,6 +25,8 @@ interface ProductRow {
 
 export default function InboundScan() {
   const { whId, sId } = useParams<"whId" | "sId">();
+  console.log("InboundScan 렌더링 시작"); 
+  console.log("whId:", whId, "sId:", sId);
 
   // 1) 구글 시트에서 로드된 상품 데이터
   const [googleProducts, setGoogleProducts] = useState<ProductRow[]>([]);
@@ -160,7 +162,7 @@ export default function InboundScan() {
       setShowScanner(true);
     }
   };
-
+  console.log("InboundScan 렌더링 직전");
   return (
     <div className="inbound-scan">
       {/* — Header — */}
@@ -310,6 +312,7 @@ export default function InboundScan() {
         >
           입고 정보 입력 →
         </Link>
+        
       </footer>
     </div>
   );

@@ -1,319 +1,422 @@
-// src/pages/warehouses/inbound-scan.tsx
-
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, Navigate, Link } from "react-router-dom";
-import Papa from "papaparse";
+import React, { useState } from "react";
+import { useParams, Navigate, Link, useLocation } from "react-router-dom";
 import {
   WAREHOUSES,
-  SOURCES,
   ScannedItem,
-  INITIAL_SCANNED_ITEMS,
-  removeScannedItemById,
+  SOURCES,
 } from "../../../constants/warehouses";
-import BarcodeScanner, { BarcodeScannerHandle } from "../barcodescanner";
 
-interface ProductRow {
-  ID: string;
-  상품명: string;
-  현재고: string;
-  유통기한: string;
-  제조일자: string;
-  규격: string;
-  바코드: string;
-  카테고리: string;
+interface LocationState {
+  scannedItems: ScannedItem[];
 }
 
-export default function InboundScan() {
-  // URL 파라미터: whId(창고 ID), sId(출발지 ID)
+export default function InboundInfo() {
+  // ─── 훅 호출 순서 지키기: 절대로 조건문 이전에 useState 등 Hook들을 모두 호출합니다. ───
   const { whId, sId } = useParams<"whId" | "sId">();
+  const location = useLocation();
+  const state = location.state as LocationState | null;
+  const scannedItems = state?.scannedItems || [];
 
-  // 1) 구글 시트에서 로드된 상품 데이터
-  const [googleProducts, setGoogleProducts] = useState<ProductRow[]>([]);
-  const [loadingSheet, setLoadingSheet] = useState<boolean>(true);
-
-  // 2) 스캔된 항목 목록
-  const [scannedItems, setScannedItems] = useState<ScannedItem[]>(INITIAL_SCANNED_ITEMS);
-
-  // 3) 출발지 라벨 (SOURCES에서 sId와 매칭되는 label)
-  const sourceLabel =
-    SOURCES.find((src) => src.id === sId)?.label || sId || "출발지";
-
-  // 4) 스캐너 영역 표시 여부
-  const [showScanner, setShowScanner] = useState<boolean>(false);
-
-  // 5) 중복 스캔 방지를 위한 일시정지 플래그
-  const pauseRef = useRef<boolean>(false);
-  useEffect(() => {
-    pauseRef.current = false;
-  }, []);
-
-  // 6) BarcodeScanner에 접근할 수 있는 ref
-  const scannerRef = useRef<BarcodeScannerHandle>(null);
-
-  // ─── 상품 데이터(CSV) 파싱 ─────────────────────────────────────────────────
-  useEffect(() => {
-    const csvUrl =
-      "https://docs.google.com/spreadsheets/d/e/2PACX-1vRLnytTHTeCyJyQTKSC82h7zji6PqCPmG2gz-0-gvYFeop-iEhvFXnwi-EOGHQJyVqhlIbneHLTUinL/pub?gid=0&single=true&output=csv";
-
-    setLoadingSheet(true);
-    Papa.parse<ProductRow>(csvUrl, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        setGoogleProducts(results.data);
-        setLoadingSheet(false);
-      },
-      error: () => {
-        setLoadingSheet(false);
-      },
-    });
-  }, []);
-  // ──────────────────────────────────────────────────────────────────────────────
-
-  // 7) 바코드 인식 성공 시 호출되는 콜백
-  const handleDetected = useCallback(
-    (barcodeText: string) => {
-      // 7-1) 일시정지 중이면 무시
-      if (pauseRef.current) return;
-
-      // 7-2) 시트 로딩 중이거나 데이터가 없으면 무시
-      if (loadingSheet || googleProducts.length === 0) return;
-
-      const trimmed = barcodeText.trim();
-
-      // 7-3) 중복 스캔 방지
-      if (scannedItems.find((it) => it.barcode === trimmed)) {
-        alert(`이미 추가된 바코드입니다: ${trimmed}`);
-        // 1초간 일시정지
-        pauseRef.current = true;
-        setTimeout(() => {
-          pauseRef.current = false;
-        }, 1000);
-        return;
-      }
-
-      // 7-4) 구글 시트 데이터에서 매칭
-      const found = googleProducts.find((prod) => {
-        const prodBarcode = prod.바코드 ?? "";
-        return prodBarcode.trim() === trimmed;
-      });
-      if (!found) {
-        alert(`스프레드시트에 등록되지 않은 바코드입니다: ${trimmed}`);
-        pauseRef.current = true;
-        setTimeout(() => {
-          pauseRef.current = false;
-        }, 1000);
-        return;
-      }
-
-      // 7-5) 매칭된 항목을 새로운 ScannedItem으로 추가
-      const warehouseLabel =
-        WAREHOUSES.find((w) => w.id === whId)?.label ?? whId ?? "";
-
-      const newItem: ScannedItem = {
-        id: (found.ID ?? "").trim(),
-        name: (found.상품명 ?? "").trim(),
-        stock: (found.현재고 ?? "").trim(),
-        size: (found.규격 ?? "").trim(),
-        barcode: trimmed,
-        category: (found.카테고리 ?? "").trim(),
-        source: sourceLabel,
-        dest: warehouseLabel,
-      };
-
-      setScannedItems((prev) => [newItem, ...prev]);
-
-      // 7-6) 한 번 추가되면 스캐너를 닫음
-      setShowScanner(false);
-
-      // 7-7) 중복 방지를 위해 1초 일시정지
-      pauseRef.current = true;
-      setTimeout(() => {
-        pauseRef.current = false;
-      }, 1000);
-    },
-    [googleProducts, loadingSheet, scannedItems, sourceLabel, whId]
+  const [currentIndex, setCurrentIndex] = useState<number>(0);
+  // 유통기한과 제조일자를 분리하여 저장할 상태
+  const [selectedDateTypeArray, setSelectedDateTypeArray] = useState<("유통기한" | "제조일자")[]>(
+    Array(scannedItems.length).fill("유통기한")
   );
+  const [expirationDateArray, setExpirationDateArray] = useState<string[]>(
+    Array(scannedItems.length).fill("")
+  );
+  const [manufactureDateArray, setManufactureDateArray] = useState<string[]>(
+    Array(scannedItems.length).fill("")
+  );
+  const [quantityArray, setQuantityArray] = useState<number[]>(
+    Array(scannedItems.length).fill(0)
+  );
+  // ────────────────────────────────────────────────────────────────────────
 
-  const handleError = useCallback((err: Error) => {
-    console.error("[InboundScan] 스캔 에러:", err);
-  }, []);
-
-  // 8) 삭제 버튼 클릭 시
-  const handleRemove = (idToRemove: string) => {
-    setScannedItems((prev) => removeScannedItemById(prev, idToRemove));
-  };
-
-  // ─── 잘못된 whId 처리 ─────────────────────────────────────────────────────
+  // 7) 반드시 훅 호출 이후에 “좌표(whId)에 해당하는 창고가 있는지”를 확인합니다.
   const warehouse = WAREHOUSES.find((w) => w.id === whId);
   if (!warehouse) {
     return <Navigate to="/warehouses" replace />;
   }
-  // ──────────────────────────────────────────────────────────────────────────────
 
-  // 9) 스캔 열기/닫기 토글 핸들러
-  const toggleScanner = () => {
-    if (showScanner) {
-      // 스캐너가 열려 있다면, BarcodeScanner의 stop()을 호출해서 완전 중지
-      if (scannerRef.current) {
-        scannerRef.current.stop();
-      }
-      setShowScanner(false);
+  // 8) URL 파라미터 sId 를 이용해 출발지(label) 찾기
+  const sourceLabel =
+    SOURCES.find((src) => src.id === sId)?.label || sId || "출발지";
+
+  // ─── 각종 핸들러 ────────────────────────────────────────────────────────────
+
+  // (a) 날짜 타입(“유통기한” or “제조일자”) 변경
+  const handleDateTypeChange = (idx: number, newType: "유통기한" | "제조일자") => {
+    setSelectedDateTypeArray((prev) => {
+      const copy = [...prev];
+      copy[idx] = newType;
+      return copy;
+    });
+  };
+
+  // (b) 날짜 값(“YYYY-MM-DD”) 변경: 선택된 타입에 따라 별도 배열에 저장
+  const handleDateChange = (idx: number, newValue: string) => {
+    if (selectedDateTypeArray[idx] === "유통기한") {
+      setExpirationDateArray((prev) => {
+        const copy = [...prev];
+        copy[idx] = newValue;
+        return copy;
+      });
     } else {
-      setShowScanner(true);
+      setManufactureDateArray((prev) => {
+        const copy = [...prev];
+        copy[idx] = newValue;
+        return copy;
+      });
     }
   };
 
+  // (c) 입고 수량 조절 (+1, -1, +5, -5 등)
+  const adjustQuantity = (idx: number, delta: number) => {
+    setQuantityArray((prev) => {
+      const copy = [...prev];
+      const next = copy[idx] + delta;
+      copy[idx] = next < 0 ? 0 : next;
+      return copy;
+    });
+  };
+
+  // (d) 페이지 네비게이션 (이전/다음 물품 보기)
+  const goPrev = () => {
+    if (currentIndex > 0) setCurrentIndex((i) => i - 1);
+  };
+  const goNext = () => {
+    if (currentIndex < scannedItems.length - 1) setCurrentIndex((i) => i + 1);
+  };
+  // ────────────────────────────────────────────────────────────────────────
+
+  // 9) 현재 인덱스의 물품 정보 꺼내기
+  const currentItem: ScannedItem = scannedItems[currentIndex] || {
+    id:       "",
+    name:     "",
+    stock:    "0",
+    size:     "",
+    barcode:  "",
+    category: "",
+    source:   sourceLabel,
+    dest:     warehouse.label,
+  };
+
+  // 원래 재고 수를 숫자형으로 변환
+  const originalStock = parseInt(currentItem.stock, 10) || 0;
+  const currentDateType = selectedDateTypeArray[currentIndex];
+  const currentDateValue =
+    currentDateType === "유통기한"
+      ? expirationDateArray[currentIndex]
+      : manufactureDateArray[currentIndex];
+  const currentQuantity = quantityArray[currentIndex];
+  // 합산된 재고
+  const displayedStock = originalStock + currentQuantity;
+
+  // 11) 버튼 활성화 여부: “물품 검토” 버튼은
+  //     -- 선택된 날짜 필드가 비어있지 않아야 하고,
+  //     -- 입고 수량 → 반드시 1 이상이어야 활성화됩니다.
+  const isSubmitEnabled = currentDateValue.trim() !== "" && currentQuantity > 0;
+
+  // ──────────────────────────────────────────────────────────────────────────
+
   return (
-    <div className="inbound-scan">
+    <div className="inbound-info">
       {/* — Header — */}
       <header className="warehouse__header">
         <h1 className="warehouse__title">
-          {warehouse.label} / 입고 스캔
+          {warehouse.label} / 입고 정보
         </h1>
         <Link to="/warehouses" className="warehouse__restart-btn">
           앱 재시작
         </Link>
       </header>
 
-      {/* — 구글 시트 로딩 상태 표시 — */}
-      <div style={{ padding: "0 16px 8px" }}>
-        {loadingSheet && <p>스프레드시트 데이터 불러오는 중…</p>}
-        {!loadingSheet && (
-          <p>총 상품 개수: {googleProducts.length}개</p>
-        )}
-      </div>
-
-      {/* — Main Content — */}
-      <div className="inbound-scan__content">
-        {/* 1) 바코드 스캔 토글 버튼 */}
-        <button
-          onClick={toggleScanner}
-          style={{
-            marginBottom: "8px",
-            padding: "8px 12px",
-            fontSize: "16px",
-            backgroundColor: "#377fd3",
-            color: "#fff",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
-          }}
-        >
-          {showScanner ? "스캔 닫기" : "바코드 스캔 열기"}
-        </button>
-
-        {/* 2) 카메라 영역 (showScanner가 true일 때만 렌더링) */}
-        {showScanner && (
-          <div className="inbound-scan__camera">
-            <BarcodeScanner
-              ref={scannerRef}
-              onDetected={handleDetected}
-              onError={handleError}
-              fallbackToFrontCameraForTest={true} // 개발/테스트 용
-            />
+      {/* — 본문: 스캔된 물품 유무에 따라 분기 — */}
+      <div className="inbound-info__content">
+        {scannedItems.length === 0 ? (
+          <div className="inbound-info__empty">
+            스캔된 물품이 없습니다.
           </div>
-        )}
-
-        {/* 3) 스캔된 항목 리스트 */}
-        <div className="inbound-scan__scanned">
-          <div className="inbound-scan__scanned-header">
-            <span className="inbound-scan__scanned-title">스캔된 항목</span>
-            <span
-              className="inbound-scan__add-manual"
-              style={{ cursor: "default", color: "#999" }}
-            >
-              + 직접 추가하기
-            </span>
-          </div>
-
-          {/* — 테이블 헤더 — */}
-          <div className="inbound-scan__table-header">
-            <div className="inbound-scan__column inbound-scan__column--icon"></div>
-            <div className="inbound-scan__column inbound-scan__column--no">번호</div>
-            <div className="inbound-scan__column inbound-scan__column--name">물품명</div>
-            <div className="inbound-scan__column inbound-scan__column--current">현재고</div>
-            <div className="inbound-scan__column inbound-scan__column--size">규격</div>
-            <div className="inbound-scan__column inbound-scan__column--barcode">바코드</div>
-            <div className="inbound-scan__column inbound-scan__column--category">카테고리</div>
-            <div className="inbound-scan__column inbound-scan__column--source">출발지</div>
-            <div className="inbound-scan__column inbound-scan__column--dest">도착지</div>
-          </div>
-
-          {/* — 테이블 바디 — */}
-          <div className="inbound-scan__table-body">
-            {scannedItems.length === 0 ? (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "16px",
-                  color: "#666",
-                }}
-              >
-                아직 스캔된 항목이 없습니다.
+        ) : (
+          <>
+            {/* 1) 카드: 현재 물품 기본 정보 */}
+            <div className="inbound-info__card">
+              <div className="inbound-info__card-header">
+                <span className="inbound-info__item-number">
+                  {currentIndex + 1}번 물품
+                </span>
+                <button
+                  className="inbound-info__delete-btn"
+                  title="이 항목 삭제"
+                  onClick={() => {
+                    // 필요 시: 삭제 로직 추가
+                  }}
+                >
+                  🗑️
+                </button>
               </div>
-            ) : (
-              scannedItems.map((item, idx) => (
-                <div key={`${item.id}-${idx}`} className="inbound-scan__row">
-                  {/* 휴지통 아이콘 */}
-                  <div className="inbound-scan__cell inbound-scan__cell--icon">
-                    <span
-                      className="inbound-scan__icon"
-                      onClick={() => handleRemove(item.id)}
-                    >
-                      🗑️
-                    </span>
-                  </div>
-                  {/* 번호 */}
-                  <div className="inbound-scan__cell inbound-scan__cell--no">{idx + 1}</div>
-                  {/* 물품명 */}
-                  <div className="inbound-scan__cell inbound-scan__cell--name">
-                    {item.name}
-                  </div>
-                  {/* 현재고 */}
-                  <div className="inbound-scan__cell inbound-scan__cell--current">
-                    {item.stock}
-                  </div>
-                  {/* 규격 */}
-                  <div className="inbound-scan__cell inbound-scan__cell--size">
-                    {item.size}
-                  </div>
-                  {/* 바코드 */}
-                  <div className="inbound-scan__cell inbound-scan__cell--barcode">
-                    {item.barcode}
-                  </div>
-                  {/* 카테고리 */}
-                  <div className="inbound-scan__cell inbound-scan__cell--category">
-                    {item.category}
-                  </div>
-                  {/* 출발지 */}
-                  <div className="inbound-scan__cell inbound-scan__cell--source">
-                    {item.source}
-                  </div>
-                  {/* 도착지 */}
-                  <div className="inbound-scan__cell inbound-scan__cell--dest">
-                    {item.dest}
-                  </div>
+
+              {/* — “물품 이름” / “현재고 (+입고수량)” 표시 */}
+              <div className="inbound-info__field-row">
+                <div className="inbound-info__field-label">물품 이름</div>
+                <div className="inbound-info__field-value">
+                  {currentItem.name}
                 </div>
-              ))
-            )}
-          </div>
-        </div>
+                <div className="inbound-info__field-label">현재고</div>
+                <div className="inbound-info__field-value">
+                  {displayedStock}
+                  {currentQuantity > 0 && (
+                    <span className="inbound-info__added-quantity">
+                      {` (+${currentQuantity})`}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* — “규격” / “유통기한(또는 제조일자 입력값)” 표시 — */}
+              <div className="inbound-info__field-row">
+                <div className="inbound-info__field-label">규격</div>
+                <div className="inbound-info__field-value">
+                  {currentItem.size}
+                </div>
+                <div className="inbound-info__field-label">{currentDateType}</div>
+                <div className="inbound-info__field-value inbound-info__field-value--expiration">
+                  {currentDateValue.trim() === "" ? "-" : currentDateValue}
+                </div>
+              </div>
+
+              {/* — “바코드” / “상품분류” 표시 — */}
+              <div className="inbound-info__field-row">
+                <div className="inbound-info__field-label">바코드</div>
+                <div className="inbound-info__field-value">
+                  {currentItem.barcode}
+                </div>
+                <div className="inbound-info__field-label">상품분류</div>
+                <div className="inbound-info__field-value">
+                  {currentItem.category}
+                </div>
+              </div>
+
+              {/* — “출발지” / “도착지” 표시 — */}
+              <div className="inbound-info__field-row">
+                <div className="inbound-info__field-label">출발지</div>
+                <div className="inbound-info__field-value">
+                  {currentItem.source}
+                </div>
+                <div className="inbound-info__field-label">도착지</div>
+                <div className="inbound-info__field-value">
+                  {warehouse.label}
+                </div>
+              </div>
+            </div>
+
+            {/* ─── 2) 날짜 입력 섹션 ─────────────────────────────────── */}
+            <div className="inbound-info__date-section">
+              <label className="inbound-info__date-label">
+                날짜 입력<span className="inbound-info__required">*</span>
+              </label>
+
+              {/* (1) 날짜 종류 선택: 유통기한 OR 제조일자 */}
+              <div className="inbound-info__date-options">
+                <label>
+                  <input
+                    type="radio"
+                    name={`dateType-${currentIndex}`}
+                    value="유통기한"
+                    checked={currentDateType === "유통기한"}
+                    onChange={() =>
+                      handleDateTypeChange(currentIndex, "유통기한")
+                    }
+                  />
+                  유통기한
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name={`dateType-${currentIndex}`}
+                    value="제조일자"
+                    checked={currentDateType === "제조일자"}
+                    onChange={() =>
+                      handleDateTypeChange(currentIndex, "제조일자")
+                    }
+                  />
+                  제조일자
+                </label>
+              </div>
+
+              {/* (2) 연/월/일 다이얼 세 개: 년, 월, 일 각각 선택 가능 */}
+              <div className="inbound-info__date-pickers">
+                {/* 년도: 2020~2030 (예시) */}
+                <select
+                  className="inbound-info__select inbound-info__select--year"
+                  value={currentDateValue.slice(0, 4) || ""}
+                  onChange={(e) => {
+                    const y = e.target.value; // “YYYY”
+                    const m = currentDateValue.slice(5, 7) || "01";
+                    const d = currentDateValue.slice(8, 10) || "01";
+                    const newVal = `${y}-${m}-${d}`;
+                    handleDateChange(currentIndex, newVal);
+                  }}
+                >
+                  <option value="">년</option>
+                  {Array.from({ length: 11 }, (_, i) => 2020 + i).map((yr) => (
+                    <option key={yr} value={String(yr)}>
+                      {yr}
+                    </option>
+                  ))}
+                </select>
+
+                {/* 월: 01~12 */}
+                <select
+                  className="inbound-info__select inbound-info__select--month"
+                  value={currentDateValue.slice(5, 7) || ""}
+                  onChange={(e) => {
+                    const y = currentDateValue.slice(0, 4) || "2025";
+                    const m = e.target.value.padStart(2, "0");
+                    const d = currentDateValue.slice(8, 10) || "01";
+                    const newVal = `${y}-${m}-${d}`;
+                    handleDateChange(currentIndex, newVal);
+                  }}
+                >
+                  <option value="">월</option>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((mo) => {
+                    const str = String(mo).padStart(2, "0");
+                    return (
+                      <option key={mo} value={str}>
+                        {mo}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {/* 일: 01~31 (간단히 1~31 고정) */}
+                <select
+                  className="inbound-info__select inbound-info__select--day"
+                  value={currentDateValue.slice(8, 10) || ""}
+                  onChange={(e) => {
+                    const y = currentDateValue.slice(0, 4) || "2025";
+                    const m = currentDateValue.slice(5, 7) || "01";
+                    const d = e.target.value.padStart(2, "0");
+                    const newVal = `${y}-${m}-${d}`;
+                    handleDateChange(currentIndex, newVal);
+                  }}
+                >
+                  <option value="">일</option>
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
+                    const str = String(day).padStart(2, "0");
+                    return (
+                      <option key={day} value={str}>
+                        {day}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {/* (3) 날짜를 다시 선택하거나, 빈 상태로 되돌리기 위한 버튼 */}
+                {currentDateValue && (
+                  <button
+                    className="inbound-info__clear-date-btn"
+                    onClick={() => {
+                      handleDateChange(currentIndex, "");
+                    }}
+                    title="날짜 초기화"
+                  >
+                    ✖️
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ─── 3) 입고 수량 입력 섹션 ─────────────────────────────────── */}
+            <div className="inbound-info__quantity-section">
+              <label className="inbound-info__quantity-label">
+                입고 수량<span className="inbound-info__required">*</span>
+              </label>
+              <div className="inbound-info__quantity-controls">
+                <button
+                  className="inbound-info__quantity-btn inbound-info__quantity-btn--minus"
+                  onClick={() => adjustQuantity(currentIndex, -10)}
+                >
+                  -10
+                </button>
+                <button
+                  className="inbound-info__quantity-btn inbound-info__quantity-btn--minus"
+                  onClick={() => adjustQuantity(currentIndex, -5)}
+                >
+                  -5
+                </button>
+                <button
+                  className="inbound-info__quantity-btn inbound-info__quantity-btn--minus"
+                  onClick={() => adjustQuantity(currentIndex, -1)}
+                >
+                  -1
+                </button>
+                <span className="inbound-info__quantity-value">
+                  {currentQuantity}
+                </span>
+                <button
+                  className="inbound-info__quantity-btn inbound-info__quantity-btn--plus"
+                  onClick={() => adjustQuantity(currentIndex, +1)}
+                >
+                  +1
+                </button>
+                <button
+                  className="inbound-info__quantity-btn inbound-info__quantity-btn--plus"
+                  onClick={() => adjustQuantity(currentIndex, +5)}
+                >
+                  +5
+                </button>
+                <button
+                  className="inbound-info__quantity-btn inbound-info__quantity-btn--plus"
+                  onClick={() => adjustQuantity(currentIndex, +10)}
+                >
+                  +10
+                </button>
+              </div>
+            </div>
+
+            {/* ─── 4) 페이지 네비게이션 (이전 / 다음) ─────────────────────── */}
+            <div className="inbound-info__pagination">
+              <button
+                className="inbound-info__page-btn"
+                onClick={goPrev}
+                disabled={currentIndex === 0}
+              >
+                ←
+              </button>
+              <span className="inbound-info__page-indicator">
+                {currentIndex + 1} / {scannedItems.length}
+              </span>
+              <button
+                className="inbound-info__page-btn"
+                onClick={goNext}
+                disabled={currentIndex === scannedItems.length - 1}
+              >
+                →
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* — Footer — */}
       <footer className="warehouse__footer">
-        <Link to={`/warehouses/${whId}/inbound`} className="warehouse__back-btn">
-          ← 출발지 목록
-        </Link>
         <Link
-          to={`/warehouses/${whId}/inbound/${sId}/info`}
-          className="warehouse__next-btn"
-          state={{ scannedItems }}
+          to={`/warehouses/${whId}/inbound/${sId}`}
+          className="warehouse__back-btn"
         >
-          입고 정보 입력 →
+          ← 입고 스캔
         </Link>
+        <button
+          className="warehouse__next-btn"
+          onClick={() => {
+            alert("입고 정보가 저장되었습니다.");
+          }}
+          disabled={!isSubmitEnabled}  /* 날짜 입력 & 수량 >0 이어야 활성화 */
+        >
+          물품 검토 →
+        </button>
       </footer>
     </div>
   );
