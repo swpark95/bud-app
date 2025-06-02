@@ -1,10 +1,7 @@
 // src/pages/warehouses/barcodescanner.tsx
 
-import React, { useRef, useEffect } from "react";
-import {
-  BrowserMultiFormatReader,
-  IScannerControls,
-} from "@zxing/browser";
+import React, { useRef, useEffect, useState, useCallback } from "react";
+import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 
 export interface BarcodeScannerProps {
   /**
@@ -29,130 +26,113 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
 
-  useEffect(() => {
-    console.log("[BarcodeScanner] useEffect 시작 → 카메라 초기화 시도");
+  // 스캔 활성 여부: true일 때 스캐너가 동작 중, false일 때 스캔 중단 상태
+  const [scanning, setScanning] = useState<boolean>(true);
+
+  // 스캐너 시작 함수: scanning이 true로 바뀔 때마다 호출
+  const startScanner = useCallback(() => {
     if (!videoRef.current) {
       console.warn("[BarcodeScanner] videoRef가 아직 설정되지 않음.");
       return;
     }
 
-    // ────── 1) ZXing Reader 인스턴스 생성 ──────
-    console.log("[BarcodeScanner] 1) BrowserMultiFormatReader 생성");
-    const codeReader = new BrowserMultiFormatReader();
+    console.log("[BarcodeScanner] startScanner 호출 → 스캔을 시작합니다.");
+
+    // codeReader가 없으면 새로 생성
+    const codeReader =
+      codeReaderRef.current || new BrowserMultiFormatReader();
     codeReaderRef.current = codeReader;
 
-    // ────── 2) 스트림 제약조건 정의 ──────
+    // 이미 실행 중인 controls가 있으면 정리
+    if (controlsRef.current) {
+      try {
+        controlsRef.current.stop();
+        console.log(
+          "[BarcodeScanner] 기존 controlsRef가 존재하여 stop() 호출"
+        );
+      } catch {}
+      controlsRef.current = null;
+    }
+
+    // ────── 스트림 제약조건 정의 ──────
     // 후면 카메라(facingMode: "environment") + 해상도 1280×720
     const constraints: MediaStreamConstraints = {
       video: {
         facingMode: { exact: "environment" },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
       },
     };
 
-    // ────── 3) decodeFromConstraints 호출 ──────
-    console.log(
-      "[BarcodeScanner] 2) decodeFromConstraints 호출, constraints:",
-      constraints
-    );
+    // decodeFromConstraints로 후면 카메라 + 해상도 요청
     codeReader
       .decodeFromConstraints(
         constraints,
         videoRef.current!,
         (result, err) => {
-          // ─── 4) 콜백: 바코드 인식 또는 에러 발생 시 실행 ───
           if (result) {
             const text = result.getText();
             const points = result.getResultPoints();
-            console.log("[BarcodeScanner] 3) 바코드 인식 성공 → 텍스트:", text);
             console.log(
-              "[BarcodeScanner]    → getResultPoints:",
+              "[BarcodeScanner] 바코드 인식 성공 → 텍스트:",
+              text
+            );
+            console.log(
+              "[BarcodeScanner]      → getResultPoints:",
               points
             );
+            // 1) onDetected 콜백 실행
             onDetected(text, points);
+
+            // 2) 스캔 중단
+            if (controlsRef.current) {
+              try {
+                controlsRef.current.stop();
+                console.log(
+                  "[BarcodeScanner] 바코드 인식 후 controls.stop() 호출됨"
+                );
+              } catch {}
+            }
+            setScanning(false);
           }
           if (err && err.name !== "NotFoundException") {
-            console.error("[BarcodeScanner] 4) 스캔 에러 발생:", err);
+            console.error("[BarcodeScanner] 스캔 에러 발생:", err);
             onError(err as Error);
           }
         }
       )
       .then((controls: IScannerControls) => {
         console.log(
-          "[BarcodeScanner] 5) decodeFromConstraints 성공, controlsRef에 저장"
+          "[BarcodeScanner] decodeFromConstraints 성공 → controlsRef에 저장"
         );
         controlsRef.current = controls;
       })
       .catch((e: Error) => {
         console.error(
-          "[BarcodeScanner] 6) decodeFromConstraints 초기화 중 에러:",
+          "[BarcodeScanner] decodeFromConstraints 초기화 중 에러:",
           e
         );
         onError(e);
       });
+  }, [onDetected, onError]);
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // * 만약 특정 deviceId를 강제로 사용하고 싶다면 아래 주석을 참고하세요:
-    //
-    // BrowserMultiFormatReader
-    //   .listVideoInputDevices()
-    //   .then((videoInputDevices: MediaDeviceInfo[]) => {
-    //     let chosen = deviceId;
-    //     if (!chosen && videoInputDevices.length > 0) {
-    //       // 라벨에 “back” 혹은 “rear”가 포함된 장치를 찾아 후면 카메라로 설정할 수 있습니다.
-    //       const rear = videoInputDevices.find(d =>
-    //         /back|rear|environment|후면/i.test(d.label)
-    //       );
-    //       chosen = rear ? rear.deviceId : videoInputDevices[0].deviceId;
-    //     }
-    //     console.log("[BarcodeScanner] 선택된 deviceId:", chosen);
-    //     return codeReader.decodeFromVideoDevice(
-    //       chosen!,
-    //       videoRef.current!,
-    //       (result, err) => {
-    //         if (result) {
-    //           console.log(
-    //             "[BarcodeScanner] (deviceId) 바코드 인식 →",
-    //             result.getText()
-    //           );
-    //           onDetected(result.getText(), result.getResultPoints());
-    //         }
-    //         if (err && err.name !== "NotFoundException") {
-    //           console.error(
-    //             "[BarcodeScanner] (deviceId) 스캔 에러 →",
-    //             err
-    //           );
-    //           onError(err as Error);
-    //         }
-    //       }
-    //     );
-    //   })
-    //   .then((controls: IScannerControls) => {
-    //     console.log(
-    //       "[BarcodeScanner] (deviceId) decodeFromVideoDevice 성공"
-    //     );
-    //     controlsRef.current = controls;
-    //   })
-    //   .catch((err) => {
-    //     console.error(
-    //       "[BarcodeScanner] (deviceId) 초기화 에러 →",
-    //       err
-    //     );
-    //     onError(err as Error);
-    //   });
-    // ─────────────────────────────────────────────────────────────────────────
-
+  // 컴포넌트 마운트 시, 스캐너 자동 시작
+  useEffect(() => {
+    console.log(
+      "[BarcodeScanner] useEffect 마운트 → startScanner 호출"
+    );
+    if (scanning) {
+      startScanner();
+    }
+    // 언마운트 시 클린업
     return () => {
       console.log("[BarcodeScanner] 언마운트 → 스캐너 정리 시작");
-      // ─── 5) 컴포넌트 언마운트 시, controls.stop() 호출 ───
       if (controlsRef.current) {
         try {
           controlsRef.current.stop();
           console.log("[BarcodeScanner] controls.stop() 호출됨");
         } catch {}
       }
-      // ─── 6) codeReader.reset() 호출 ───
       if (codeReaderRef.current) {
         try {
           (codeReaderRef.current as any).reset();
@@ -164,7 +144,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
         }
       }
     };
-  }, [deviceId, onDetected, onError]);
+  }, [scanning, startScanner]);
 
   return (
     <div
@@ -195,6 +175,34 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
 
       {/* 3) 중앙 노란 테두리 */}
       <div className="scan-border" />
+
+      {/* 4) 스캔 완료 후, 재스캔 버튼 표시 */}
+      {!scanning && (
+        <button
+          onClick={() => {
+            console.log(
+              "[BarcodeScanner] 재스캔 버튼 클릭 → scanning=true → startScanner 호출"
+            );
+            setScanning(true);
+          }}
+          style={{
+            position: "absolute",
+            bottom: "10px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            padding: "8px 16px",
+            fontSize: "16px",
+            backgroundColor: "#377fd3",
+            color: "#fff",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            zIndex: 10,
+          }}
+        >
+          추가 스캔하기
+        </button>
+      )}
     </div>
   );
 };
