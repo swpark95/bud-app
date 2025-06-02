@@ -24,37 +24,31 @@ interface ProductRow {
 }
 
 export default function InboundScan() {
-  // ─── 훅 선언부 ───────────────────────────────────────────────────────
-  // 1) 구글 시트에서 로드된 상품 데이터
+  const { whId, sId } = useParams<"whId" | "sId">();
+
+  // 1) 상품 데이터
   const [googleProducts, setGoogleProducts] = useState<ProductRow[]>([]);
   const [loadingSheet, setLoadingSheet] = useState<boolean>(true);
 
   // 2) 스캔된 항목 목록
-  const [scannedItems, setScannedItems] = useState<ScannedItem[]>(INITIAL_SCANNED_ITEMS);
+  const [scannedItems, setScannedItems] = useState<ScannedItem[]>(
+    INITIAL_SCANNED_ITEMS
+  );
 
-  // 3) 스캔 일시정지 토글
-  const [pauseScan, setPauseScan] = useState<boolean>(false);
-
-  // 4) URL 파라미터: whId (창고 ID)와 sId (출발지 ID)
-  const { whId, sId } = useParams<"whId" | "sId">();
-
-  // 5) 참조(ref)에 상태를 저장해 두면, 콜백 안에서도 최신 값을 참조할 수 있음
-  const pauseRef = useRef<boolean>(pauseScan);
-  const itemsRef = useRef<ScannedItem[]>(scannedItems);
-
-  useEffect(() => {
-    pauseRef.current = pauseScan;
-  }, [pauseScan]);
-  useEffect(() => {
-    itemsRef.current = scannedItems;
-  }, [scannedItems]);
-
-  // 6) URL 파라미터 sId에서 “출발지 라벨” 찾기
-  //    (SOURCES 배열에서 id === sId인 항목의 label)
+  // 3) 출발지 라벨
   const sourceLabel =
     SOURCES.find((src) => src.id === sId)?.label || sId || "출발지";
 
-  // ─── 상품 데이터(CSV) 파싱 ─────────────────────────────────────────────────
+  // 4) 스캐너 표시 여부
+  const [showScanner, setShowScanner] = useState<boolean>(false);
+
+  // 5) 스캔 일시정지 플래그
+  const pauseRef = useRef<boolean>(false);
+  useEffect(() => {
+    pauseRef.current = false;
+  }, []);
+
+  // ─── 상품 데이터(CSV) 파싱 ─────────────────────────
   useEffect(() => {
     const csvUrl =
       "https://docs.google.com/spreadsheets/d/e/2PACX-1vRLnytTHTeCyJyQTKSC82h7zji6PqCPmG2gz-0-gvYFeop-iEhvFXnwi-EOGHQJyVqhlIbneHLTUinL/pub?gid=0&single=true&output=csv";
@@ -73,100 +67,68 @@ export default function InboundScan() {
       },
     });
   }, []);
-  // ────────────────────────────────────────────────────────────────────────
-  
 
-  // 7) 바코드 인식 성공 시 호출되는 콜백
+  // ─── 바코드 감지 시 호출 ───────────────────────────────
   const handleDetected = useCallback(
     (barcodeText: string) => {
-      // 7-1) 스캔 일시정지 중이면 무시
       if (pauseRef.current) return;
-
-      // 7-2) 아직 시트 파싱 중이거나 데이터가 없다면 무시
       if (loadingSheet || googleProducts.length === 0) return;
 
       const trimmed = barcodeText.trim();
 
-      // 7-3) 중복 스캔 방지 (ref를 통해 최신 scannedItems 확인)
-      if (itemsRef.current.find((it) => it.barcode === trimmed)) {
-        pauseRef.current = true;
-        setPauseScan(true);
-        alert(`이미 스캔된 바코드입니다: ${trimmed}`);
-        setTimeout(() => {
-          pauseRef.current = false;
-          setPauseScan(false);
-        }, 1000);
+      if (scannedItems.find((it) => it.barcode === trimmed)) {
+        alert(`이미 추가된 바코드입니다: ${trimmed}`);
         return;
       }
 
-      // 7-4) 구글 시트 데이터에서 매칭
       const found = googleProducts.find((prod) => {
         const prodBarcode = prod.바코드 ?? "";
         return prodBarcode.trim() === trimmed;
       });
       if (!found) {
-        pauseRef.current = true;
-        setPauseScan(true);
         alert(`스프레드시트에 등록되지 않은 바코드입니다: ${trimmed}`);
-        setTimeout(() => {
-          pauseRef.current = false;
-          setPauseScan(false);
-        }, 1000);
         return;
       }
 
-      // 7-5) 매칭되었다면 새 항목 추가
-      const warehouseLabel = WAREHOUSES.find((w) => w.id === whId)?.label ?? whId ?? "";
+      const warehouseLabel =
+        WAREHOUSES.find((w) => w.id === whId)?.label ?? whId ?? "";
 
       const newItem: ScannedItem = {
-        id:       (found.ID ?? "").trim(),
-        name:     (found.상품명 ?? "").trim(),
-        stock:    (found.현재고 ?? "").trim(),
-        size:     (found.규격 ?? "").trim(),
-        barcode:  (found.바코드 ?? "").trim(),
+        id: (found.ID ?? "").trim(),
+        name: (found.상품명 ?? "").trim(),
+        stock: (found.현재고 ?? "").trim(),
+        size: (found.규격 ?? "").trim(),
+        barcode: (found.바코드 ?? "").trim(),
         category: (found.카테고리 ?? "").trim(),
-        source:   sourceLabel,    // “출발지” 라벨
-        dest:     warehouseLabel, // “도착지” 라벨: 해당 창고의 이름
+        source: sourceLabel,
+        dest: warehouseLabel,
       };
 
-      setScannedItems((prev) => {
-        const updated = [newItem, ...prev];
-        itemsRef.current = updated;
-        return updated;
-      });
+      setScannedItems((prev) => [newItem, ...prev]);
+      setShowScanner(false);
 
-      // 7-6) 정상 스캔 후 1초 일시정지
       pauseRef.current = true;
-      setPauseScan(true);
       setTimeout(() => {
         pauseRef.current = false;
-        setPauseScan(false);
       }, 1000);
     },
-    [googleProducts, loadingSheet, sourceLabel, whId]
+    [googleProducts, loadingSheet, scannedItems, sourceLabel, whId]
   );
 
   const handleError = useCallback((err: Error) => {
-    // IndexSizeError 등 무시할 에러가 있으면 처리
-    if (err.name === "IndexSizeError") return;
     console.error("[InboundScan] 스캔 에러:", err);
   }, []);
 
-  // 8) 삭제 버튼 클릭 시
+  // 6) 삭제 버튼
   const handleRemove = (idToRemove: string) => {
-    setScannedItems((prev) => {
-      const updated = removeScannedItemById(prev, idToRemove);
-      itemsRef.current = updated;
-      return updated;
-    });
+    setScannedItems((prev) => removeScannedItemById(prev, idToRemove));
   };
 
-  // ─── 잘못된 whId 처리 ─────────────────────────────────────────────────────
+  // ─── 잘못된 whId 처리 ─────────────────────────────────
   const warehouse = WAREHOUSES.find((w) => w.id === whId);
   if (!warehouse) {
     return <Navigate to="/warehouses" replace />;
   }
-  // ────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="inbound-scan">
@@ -180,7 +142,7 @@ export default function InboundScan() {
         </Link>
       </header>
 
-      {/* — 구글 시트 로딩 상태 표시 — */}
+      {/* — 구글 시트 로딩 상태 — */}
       <div style={{ padding: "0 16px 8px" }}>
         {loadingSheet && <p>스프레드시트 데이터 불러오는 중…</p>}
         {!loadingSheet && (
@@ -190,46 +152,74 @@ export default function InboundScan() {
 
       {/* — Main Content — */}
       <div className="inbound-scan__content">
-        {/* 1) 카메라 영역 */}
-        <div className="inbound-scan__camera">
-          {/* 실제 비디오(카메라) */}
-          <div className="barcode-scanner__wrapper">
+        {/* 1) 바코드 스캔 토글 버튼 */}
+        <button
+          onClick={() => setShowScanner((prev) => !prev)}
+          style={{
+            marginBottom: "8px",
+            padding: "8px 12px",
+            fontSize: "16px",
+            backgroundColor: "#377fd3",
+            color: "#fff",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}
+        >
+          {showScanner ? "스캔 닫기" : "바코드 스캔 열기"}
+        </button>
+
+        {/* 2) 카메라 영역 (showScanner가 true일 때만) */}
+        {showScanner && (
+          <div className="inbound-scan__camera">
             <BarcodeScanner
               onDetected={handleDetected}
               onError={handleError}
             />
           </div>
+        )}
 
-          {/* 2) 반투명 마스크(화면 전체를 어둡게, 중앙만 뚫음) */}
-          <div className="scan-mask"></div>
-
-          {/* 3) 노란색 사각형 테두리 */}
-          <div className="scan-border"></div>
-        </div>
-
-        {/* 2) 스캔된 항목 리스트 */}
+        {/* 3) 스캔된 항목 리스트 */}
         <div className="inbound-scan__scanned">
           <div className="inbound-scan__scanned-header">
-            <span className="inbound-scan__scanned-title">스캔된 항목</span>
-            <Link
-              to={`/warehouses/${whId}/inbound`}
+            <span className="inbound-scan__scanned-title">
+              스캔된 항목
+            </span>
+            <span
               className="inbound-scan__add-manual"
+              style={{ cursor: "default", color: "#999" }}
             >
               + 직접 추가하기
-            </Link>
+            </span>
           </div>
 
           {/* — 테이블 헤더 — */}
           <div className="inbound-scan__table-header">
             <div className="inbound-scan__column inbound-scan__column--icon"></div>
-            <div className="inbound-scan__column inbound-scan__column--no">번호</div>
-            <div className="inbound-scan__column inbound-scan__column--name">물품명</div>
-            <div className="inbound-scan__column inbound-scan__column--current">현재고</div>
-            <div className="inbound-scan__column inbound-scan__column--size">규격</div>
-            <div className="inbound-scan__column inbound-scan__column--barcode">바코드</div>
-            <div className="inbound-scan__column inbound-scan__column--category">카테고리</div>
-            <div className="inbound-scan__column inbound-scan__column--source">출발지</div>
-            <div className="inbound-scan__column inbound-scan__column--dest">도착지</div>
+            <div className="inbound-scan__column inbound-scan__column--no">
+              번호
+            </div>
+            <div className="inbound-scan__column inbound-scan__column--name">
+              물품명
+            </div>
+            <div className="inbound-scan__column inbound-scan__column--current">
+              현재고
+            </div>
+            <div className="inbound-scan__column inbound-scan__column--size">
+              규격
+            </div>
+            <div className="inbound-scan__column inbound-scan__column--barcode">
+              바코드
+            </div>
+            <div className="inbound-scan__column inbound-scan__column--category">
+              카테고리
+            </div>
+            <div className="inbound-scan__column inbound-scan__column--source">
+              출발지
+            </div>
+            <div className="inbound-scan__column inbound-scan__column--dest">
+              도착지
+            </div>
           </div>
 
           {/* — 테이블 바디 — */}
@@ -314,7 +304,7 @@ export default function InboundScan() {
         <Link
           to={`/warehouses/${whId}/inbound/${sId}/info`}
           className="warehouse__next-btn"
-          state={{ scannedItems}}
+          state={{ scannedItems }}
         >
           입고 정보 입력 →
         </Link>
