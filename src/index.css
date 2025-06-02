@@ -141,7 +141,7 @@ body {
 .inbound-scan__camera {
   position: relative;
   width: 100%;
-  height: 300px;       /* 카메라 높이를 원하는 만큼 조정 (예: 300px) */
+  height: 200px;       /* 카메라 높이를 원하는 만큼 조정 (예: 300px) */
   margin-bottom: 16px;
   background: #000;    /* 검은 배경 위에 비디오가 올라오는 형태 */
   overflow: hidden;
@@ -162,7 +162,7 @@ body {
   top: 50%;
   left: 50%;
   width: auto; 
-  height: 400px; /* 부모가 300px인데, 비디오 높이를 좀 더 크게 잡는다. */
+  height: 300px; /* 부모가 300px인데, 비디오 높이를 좀 더 크게 잡는다. */
   min-width: 700px; /* 필요에 따라 가로로도 여유를 준다. */
   transform: translate(-50%, -50%);
   object-fit: cover; 
