@@ -41,7 +41,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
     const codeReader = new BrowserMultiFormatReader();
     codeReaderRef.current = codeReader;
 
-    // 먼저 후면(environment) 카메라로 시도
+    // 후면 카메라 시도
     const tryEnvironment = () => {
       const constraints: MediaStreamConstraints = {
         video: { facingMode: { exact: "environment" } },
@@ -54,10 +54,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
           if (result) {
             const text = result.getText();
             const points = result.getResultPoints();
-            console.log(
-              "[BarcodeScanner] 바코드 인식 성공 → 텍스트:",
-              text
-            );
+            console.log("[BarcodeScanner] 바코드 인식 성공 → 텍스트:", text);
             onDetected(text, points);
           }
           if (err && err.name !== "NotFoundException") {
@@ -68,7 +65,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
       );
     };
 
-    // 후면 카메라가 실패하면 전면(user) 카메라 시도
+    // 전면 카메라 시도
     const tryUser = () => {
       const constraints: MediaStreamConstraints = {
         video: { facingMode: { exact: "user" } },
@@ -95,26 +92,36 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
       );
     };
 
-    // 에러 발생 시 앞면 카메라로 자동 전환
+    // 후면 → 전면 순으로 시도
     tryEnvironment()
-      .then((controls) => {
-        console.log(
-          "[BarcodeScanner] 후면 카메라 성공 → controlsRef에 저장"
-        );
+      .then((controls: IScannerControls) => {
+        console.log("[BarcodeScanner] 후면 카메라 성공 → controlsRef에 저장");
         controlsRef.current = controls;
+
+        // 손전등(토치) 켜기 시도
+        const stream = videoRef.current!.srcObject as MediaStream | null;
+        if (stream) {
+          const track = stream.getVideoTracks()[0];
+          if (track && "applyConstraints" in track) {
+            // torch 제약은 TS 정의에 없으므로 any로 캐스트
+            (track as any)
+              .applyConstraints({ advanced: [{ torch: true }] })
+              .catch(() => {
+                console.warn("[BarcodeScanner] 토치 활성화 실패");
+              });
+          }
+        }
       })
       .catch((e) => {
-        console.warn(
-          "[BarcodeScanner] 후면 카메라 초기화 실패:",
-          e
-        );
+        console.warn("[BarcodeScanner] 후면 카메라 초기화 실패:", e);
         if (fallbackToFrontCameraForTest) {
           tryUser()
-            .then((controls) => {
+            .then((controls: IScannerControls) => {
               console.log(
                 "[BarcodeScanner] 앞면 카메라 성공 → controlsRef에 저장"
               );
               controlsRef.current = controls;
+              // 전면 카메라에서는 토치가 지원되지 않을 수 있음
             })
             .catch((err2) => {
               console.error(
@@ -141,9 +148,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
           (codeReaderRef.current as any).reset();
           console.log("[BarcodeScanner] codeReader.reset() 호출됨");
         } catch {
-          console.warn(
-            "[BarcodeScanner] codeReader.reset() 메서드 없음, 무시"
-          );
+          console.warn("[BarcodeScanner] codeReader.reset() 메서드 없음, 무시");
         }
       }
     };

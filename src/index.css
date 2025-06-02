@@ -172,10 +172,10 @@ body {
 
 .scan-border {
   position: absolute;
-  top: 12.5%;          /* (100 - 45) / 2 = 27.5% */
+  top: 17.5%;          /* (100 - 45) / 2 = 27.5% */
   left: 10%;
   width: 80%;
-  height: 75%;         /*  기존 30% → 45% (1.5배 증가) */
+  height: 65%;         /*  기존 30% → 45% (1.5배 증가) */
   border: 2px solid yellow;
   box-sizing: border-box;
   pointer-events: none;
@@ -189,7 +189,7 @@ body {
   top: 0;
   left: 0;
   width: 100%;
-  height: 27.5%;
+  height: 17.5%;
   background-color: rgba(0, 0, 0, 0.5);
   pointer-events: none;
 }
@@ -199,7 +199,7 @@ body {
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 27.5%;
+  height: 17.5%;
   background-color: rgba(0, 0, 0, 0.5);
   pointer-events: none;
 }
@@ -207,7 +207,7 @@ body {
 /* ③ 왼쪽 오버레이: 노란 사각형 좌우 영역 중 왼쪽 10% 너비, 세로는 45% */
 .scan-overlay-left {
   position: absolute;
-  top: 27.5%;
+  top: 17.5%;
   left: 0;
   width: 10%;
   height: 45%;
@@ -218,7 +218,7 @@ body {
 /* ④ 오른쪽 오버레이: 노란 사각형 우측 10% */
 .scan-overlay-right {
   position: absolute;
-  top: 27.5%;
+  top: 17.5%;
   right: 0;
   width: 10%;
   height: 45%;

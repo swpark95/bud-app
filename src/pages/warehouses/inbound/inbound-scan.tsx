@@ -77,7 +77,12 @@ export default function InboundScan() {
       const trimmed = barcodeText.trim();
 
       if (scannedItems.find((it) => it.barcode === trimmed)) {
+        // 중복인 경우: 토치 끄고(또는 유지), alert 반복 방지 위해 일시정지
         alert(`이미 추가된 바코드입니다: ${trimmed}`);
+        pauseRef.current = true;
+        setTimeout(() => {
+          pauseRef.current = false;
+        }, 1000);
         return;
       }
 
@@ -87,6 +92,10 @@ export default function InboundScan() {
       });
       if (!found) {
         alert(`스프레드시트에 등록되지 않은 바코드입니다: ${trimmed}`);
+        pauseRef.current = true;
+        setTimeout(() => {
+          pauseRef.current = false;
+        }, 1000);
         return;
       }
 
@@ -152,8 +161,19 @@ export default function InboundScan() {
 
       {/* — Main Content — */}
       <div className="inbound-scan__content">
-        {/* 1) 바코드 스캔 토글 버튼 */}
-        <button
+        {/* 2) 카메라 영역 (showScanner가 true일 때만) */}
+        {showScanner && (
+          <div className="inbound-scan__camera">
+            <BarcodeScanner
+              onDetected={handleDetected}
+              onError={handleError}
+              fallbackToFrontCameraForTest={true} // 로컬 테스트용
+            />
+          </div>
+        )}
+
+                {/* 1) 바코드 스캔 토글 버튼 */}
+                <button
           onClick={() => setShowScanner((prev) => !prev)}
           style={{
             marginBottom: "8px",
@@ -168,16 +188,6 @@ export default function InboundScan() {
         >
           {showScanner ? "스캔 닫기" : "바코드 스캔 열기"}
         </button>
-
-        {/* 2) 카메라 영역 (showScanner가 true일 때만) */}
-        {showScanner && (
-          <div className="inbound-scan__camera">
-            <BarcodeScanner
-              onDetected={handleDetected}
-              onError={handleError}
-            />
-          </div>
-        )}
 
         {/* 3) 스캔된 항목 리스트 */}
         <div className="inbound-scan__scanned">
