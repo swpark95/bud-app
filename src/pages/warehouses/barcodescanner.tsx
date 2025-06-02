@@ -46,8 +46,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
     const constraints: MediaStreamConstraints = {
       video: {
         facingMode: { exact: "environment" },
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
       },
     };
 
