@@ -19,7 +19,7 @@ import React, {
     ) => void;
     onError: (error: Error) => void;
     /**
-     * 테스트용으로 전면 카메라도 시도하려면 true.
+     * 개발용: 전면 카메라도 시도하려면 true.
      * 배포 시 false로 두면 오직 후면 카메라만 사용합니다.
      */
     fallbackToFrontCameraForTest?: boolean;
@@ -34,8 +34,6 @@ import React, {
       const videoRef = useRef<HTMLVideoElement>(null);
       const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
       const controlsRef = useRef<IScannerControls | null>(null);
-  
-      // “한 번만 초기화”를 보장하기 위한 플래그 (StrictMode 대응)
       const initializedRef = useRef<boolean>(false);
   
       // 부모가 stop()을 호출할 수 있도록 노출
@@ -51,18 +49,15 @@ import React, {
           }
           if (codeReaderRef.current) {
             try {
-              // 예비적으로 reset()도 호출해본다
               (codeReaderRef.current as any).reset();
               console.log("[BarcodeScanner] 외부 reset() 호출됨 → 스캐너 초기화");
-            } catch {
-              // reset 메서드가 없으면 무시
-            }
+            } catch {}
           }
         },
       }));
   
       useEffect(() => {
-        // 이미 한 번 초기화했다면 두 번째 호출은 무시
+        // StrictMode에서 useEffect가 두 번 호출되지 않도록 한 번만 초기화
         if (initializedRef.current) {
           return;
         }
@@ -77,6 +72,28 @@ import React, {
         const codeReader = new BrowserMultiFormatReader();
         codeReaderRef.current = codeReader;
   
+        // 카메라 스트림이 붙은 뒤 torch를 켜기 위한 함수
+        const enableTorch = () => {
+          const stream = videoRef.current!.srcObject as MediaStream | null;
+          if (stream) {
+            const track = stream.getVideoTracks()[0];
+            if (track) {
+              // 타입 체크를 우회하기 위해 any로 캐스트
+              const constraints: any = { advanced: [{ torch: true }] };
+              track
+                .applyConstraints(constraints)
+                .then(() => {
+                  console.log("[BarcodeScanner] 토치(손전등) 활성화됨");
+                })
+                .catch((e: any) => {
+                  console.warn("[BarcodeScanner] 토치 활성화 실패:", e);
+                });
+            } else {
+              console.warn("[BarcodeScanner] 비디오 트랙을 찾을 수 없음");
+            }
+          }
+        };
+  
         // 1) 후면(환경) 카메라 시도
         const tryEnvironment = () => {
           const constraints: MediaStreamConstraints = {
@@ -90,12 +107,10 @@ import React, {
               if (result) {
                 const text = result.getText();
                 const points = result.getResultPoints();
-                console.log("[BarcodeScanner] (후면) 인식 성공 →", text);
-  
-                // 1) 콜백 전달
+                console.log("[BarcodeScanner] (후면) 바코드 인식 →", text);
                 onDetected(text, points);
   
-                // 2) 즉시 스트림 중지
+                // 인식되면 자동 중지
                 if (controlsRef.current) {
                   try {
                     controlsRef.current.stop();
@@ -115,7 +130,7 @@ import React, {
           );
         };
   
-        // 2) 전면 카메라 시도
+        // 2) 전면 사용자 카메라 시도
         const tryUser = () => {
           const constraints: MediaStreamConstraints = {
             video: { facingMode: "user" },
@@ -128,12 +143,10 @@ import React, {
               if (result) {
                 const text = result.getText();
                 const points = result.getResultPoints();
-                console.log("[BarcodeScanner] (전면) 인식 성공 →", text);
-  
-                // 1) 콜백 전달
+                console.log("[BarcodeScanner] (전면) 바코드 인식 →", text);
                 onDetected(text, points);
   
-                // 2) 즉시 스트림 중지
+                // 인식되면 자동 중지
                 if (controlsRef.current) {
                   try {
                     controlsRef.current.stop();
@@ -159,13 +172,17 @@ import React, {
             .then((controls: IScannerControls) => {
               controlsRef.current = controls;
               console.log("[BarcodeScanner] 후면 카메라 성공 → controls 저장");
+              enableTorch(); // 스트림이 붙은 뒤 토치 켜기
             })
             .catch((rearErr) => {
               console.warn("[BarcodeScanner] 후면 카메라 실패:", rearErr);
               tryUser()
                 .then((controls: IScannerControls) => {
                   controlsRef.current = controls;
-                  console.log("[BarcodeScanner] 전면 카메라 성공 → controls 저장");
+                  console.log(
+                    "[BarcodeScanner] 전면 카메라 성공 → controls 저장"
+                  );
+                  enableTorch(); // 전면에서도 토치 켜기 시도
                 })
                 .catch((frontErr) => {
                   console.error("[BarcodeScanner] 전면 카메라 실패:", frontErr);
@@ -173,11 +190,11 @@ import React, {
                 });
             });
         } else {
-          // 배포 시엔 fallbackToFrontCameraForTest=false로 두면 오직 후면만 시도
           tryEnvironment()
             .then((controls: IScannerControls) => {
               controlsRef.current = controls;
               console.log("[BarcodeScanner] 후면 카메라 성공 → controls 저장");
+              enableTorch();
             })
             .catch((rearErr) => {
               console.error("[BarcodeScanner] 후면 카메라 실패:", rearErr);
@@ -223,7 +240,6 @@ import React, {
             muted
             playsInline
           />
-          {/* OVERLAY 및 노란 테두리 등은 기존 CSS 그대로 사용합니다 */}
           <div className="scan-overlay-top" />
           <div className="scan-overlay-bottom" />
           <div className="scan-overlay-left" />
