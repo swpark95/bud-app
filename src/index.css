@@ -11,3 +11,622 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+/* 2) 모바일 뷰포트 대응 */
+body {
+  background-color: #fff;
+  color: #000;
+}
+
+.home{
+  background-color: #000;
+  color: #fff;
+  display:flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  height: 100vh;
+  padding: env(safe-area-inset-top, 20px) 20px env(safe-area-inset-bottom, 20px);
+  box-sizing: border-box;
+  text-align: center;
+}
+
+/* 4) 타이틀: 상단 여백을 좀 줘서 폰 상단 노치 영역 피함 */
+.home .title {
+  margin-top: 40px;
+  font-size: 24px;
+  line-height: 1.4;
+}
+
+/* 5) 시작 버튼: 화면 너비의 90% 또는 최대 360px */
+.home .start-button {
+  display: block;
+  width: 90%;
+  max-width: 360px;
+  height: 56px;
+  background-color: #2F8537;
+  color: #fff;
+  text-decoration: none;
+  font-size: 18px;
+  line-height: 56px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.warehouse, .warehouse-detail, .inbound, .outbound {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #f2f2f2;
+  margin: 0;
+}
+
+/* — Element: header — */
+.warehouse__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background-color: #fff;
+}
+
+.warehouse__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.warehouse__restart-btn {
+  padding: 6px 12px;
+  font-size: 14px;
+  color: #333;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  text-decoration: none;
+}
+
+/* — Element: list — */
+.warehouse__list, .warehouse-detail__list, .inbound__list, .outbound__list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.warehouse__item, .warehouse-detail__item, .inbound__item, .outbound__item {
+  flex: 1;
+  background-color: #377fd3;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 20px;
+  text-decoration: none;
+}
+
+.inbound-scan {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #f2f2f2;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.inbound-scan__content {
+  /* Header가 차지한 높이를 제외한 나머지 전체 공간을 차지 */
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  box-sizing: border-box;
+
+  /* 화면 전체에 스크롤을 걸지 않기 위해 overflow를 제거 */
+  overflow: hidden;
+}
+
+/* 3.1) 카메라 영역: 고정 높이 */
+
+.inbound-scan__camera { 
+  /* InboundScan 컴포넌트에서 카메라 영역을 감싸는 부모 */
+  width: 100%;
+  height: 300px;       /* 원하는 만큼 높이를 준다 (예: 300px). */
+  margin-bottom: 16px; /* (선택) 레이아웃 여유 공간 */
+  position: relative;  
+  background: #000;    /* (선택) 검은 배경으로, 화면이 켜졌을 때 차이가 보이도록 */
+}
+
+.barcode-scanner__wrapper {
+  width: 100%;
+  height: 100%;        /* 부모(.inbound-scan__camera)의 높이(300px)를 상속받는다 */  
+  overflow: hidden;
+}
+
+.barcode-scanner__video {
+  width: 100%;
+  height: 300px;
+  border: "3px solid red";
+  object-fit: cover;   /* 영상 비율을 유지하며, 래퍼를 꽉 채우도록 */
+}
+
+/* 3.2) 스캔된 항목 카드: 화면 아래 남은 공간을 모두 차지 */
+.inbound-scan__scanned {
+  background-color: #fff;
+  border-radius: 8px;
+  flex: 1;              /* 카메라 아래 공간 전부 차지 */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;     /* 내부 스크롤은 아래 바디에서 처리 */
+}
+
+/* 4) 스캔된 항목 카드 내부 - 헤더 */
+.inbound-scan__scanned-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #ddd;
+  background-color: #fff;
+  z-index: 2;
+}
+
+.inbound-scan__scanned-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.inbound-scan__add-manual {
+  font-size: 14px;
+  color: #377fd3;
+  text-decoration: none;
+}
+
+/* └ 테이블 헤더 행 */
+.inbound-scan__table-header {
+  display: grid;
+  /* 컬럼 너비: 번호(50px) / 물품이름(120px) / 나머지 100px씩 */
+  grid-template-columns:
+    40px  /* 번호(아이콘 포함) */
+    50px   /* 번호(아이콘 포함) */
+    120px  /* 물품이름 */
+    100px  /* 현재고 */
+    100px  /* 규격 */
+    150px  /* 바코드(길어서 넉넉히) */
+    120px  /* 상품분류 */
+    120px  /* 출발지 */
+    120px; /* 도착지 */
+  padding: 8px 0;
+  border-bottom: 1px solid #ddd;
+  background-color: #fff;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+
+  /* 스크롤 시 상단에 고정 */
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+.inbound-scan__column {
+  text-align: center;
+  white-space: nowrap;
+  padding: 0 8px;
+}
+
+/* 첫 번째(아이콘), 두 번째(번호), 세 번째(물품이름) 컬럼만 sticky */
+.inbound-scan__column--icon {
+  position: sticky;
+  left: 0;
+  background-color: #fff;
+  z-index: 4;
+}
+
+
+/* 2) 헤더의 첫 두 컬럼(번호, 물품이름) 고정 */
+.inbound-scan__column--no {
+  /* 첫 번째 컬럼(번호) 고정 */
+  position: sticky;
+  left: 0;
+  background-color: #fff;
+  z-index: 4;
+}
+
+.inbound-scan__column--name {
+  /* 두 번째 컬럼(물품이름) 고정 */
+  position: sticky;
+  left: 50px; /* 왼쪽에서 첫 번째 컬럼(50px)만큼 떨어진 위치 */
+  background-color: #fff;
+  z-index: 4;
+}
+
+/* 6) 바디: 스캔된 항목 리스트를 담는 영역 (세로 스크롤) */
+.inbound-scan__table-body {
+  flex: 1;                /* 헤더 아래 남은 공간 모두 사용 */
+  overflow-y: auto;       /* 내부에서만 세로 스크롤 */
+}
+
+/* 스캔된 항목 한 줄(row) */
+.inbound-scan__row {
+  display: grid;
+  /* 헤더와 동일한 grid-template-columns를 사용해야 컬럼 정렬이 일치 */
+  grid-template-columns:
+    40px  /* 번호(아이콘 포함) */
+    50px  /* 물품이름 */
+    120px
+    100px
+    100px
+    150px
+    120px
+    120px
+    120px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+  background-color: #fff;
+  align-items: center;
+}
+
+/* — 각 셀(Cell) 공통 스타일 — */
+.inbound-scan__cell {
+  padding: 0 8px;
+  font-size: 14px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 바디에서 첫 세 셀(아이콘·번호·물품이름) sticky */
+.inbound-scan__cell--icon {
+  position: sticky;
+  left: 0;
+  background-color: #fff;
+  z-index: 2;
+}
+
+/* 3) 바디의 첫 두 셀(번호, 물품이름) 고정 */
+.inbound-scan__cell--no {
+  position: sticky;
+  left: 0;
+  background-color: #fff;
+  z-index: 2;
+}
+
+.inbound-scan__cell--name {
+  position: sticky;
+  left: 50px;
+  background-color: #fff;
+  z-index: 2;
+}
+
+/* 4) 휴지통 아이콘(삭제 버튼) 스타일 */
+.inbound-scan__icon {
+  font-size: 16px;
+  color: #c00; /* 빨간색 또는 취향에 맞춰 조정 */
+  cursor: pointer;
+}
+
+.inbound-info {
+  height: 100vh;
+  display: flex;           /* 필요에 따라 flex-container여도 되고 아니어도 됩니다 */
+  flex-direction: column; 
+  margin: 0;
+  box-sizing: border-box;
+}
+
+/* — 본문 콘텐츠 영역 — */
+.inbound-info__content {
+  display: flex;            /* ① flex 컨테이너로 만든다 */
+  flex-direction: column;   /*    세로축 방향으로 쌓인다 */
+  flex: 1;                  /*    부모(.inbound-info)의 남은 높이를 전부 차지 */
+  padding: 16px;
+  background-color: #D8D8D8;
+  box-sizing: border-box;
+  overflow: hidden;         /* (스크롤 처리는 카드 영역에서만) */
+}
+
+.inbound-info__empty {
+  text-align: center;
+  color: #666;
+  font-size: 20px;
+  margin-top: 40px;
+}
+
+/* ─── 스캔된 물품 카드 ─────────────────────────────────────────────────── */
+.inbound-info__card {
+  flex: 1;                  /* ② 이 영역이 .inbound-info__content의 남은 세로공간을 전부 채움 */
+  margin-bottom: 16px;      /* 카드 아래에 날짜 섹션과 들러붙지 않도록 여유 간격 */
+  
+  /* 카드 내부 내용이 많아질 때만 스크롤을 주고 싶으면: */
+  overflow-y: auto;
+  
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.inbound-info__card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.inbound-info__item-number {
+  font-size: 20px;
+  font-weight: 600;
+  color: #377fd3;
+}
+
+.inbound-info__delete-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.inbound-info__field-row {
+  display: flex;
+  justify-content: flex-start;
+  align-self: flex-start;
+  margin-right: 8px;
+  margin-bottom: 24px;
+  
+}
+
+.inbound-info__field-label {
+  flex: 0 0 80px;
+  font-size: 20px;
+  color: #666;
+}
+
+.inbound-info__field-value {
+  flex: 1;
+  margin-right: 16px;
+  font-size: 20px;
+  font-weight: bold;
+  color: #333;
+  white-space: normal;
+  word-break: break-word; /* 가능한 위치에서 단어 단위로 끊기 */
+  overflow-wrap: break-word; /* 긴 단어가 영역을 넘을 때 자동 줄바꿈 */
+}
+
+/* ─── “유통기한” 값이 있을 경우 초록색으로 표시 ───────────────────────── */
+.inbound-info__field-value--expiration {
+  color: #2E7D32; /* 초록 계열 */
+}
+
+/* ─── “(+입고수량)” 텍스트 ───────────────────────────────────────────── */
+.inbound-info__added-quantity {
+  margin-left: 4px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #2E7D32;
+}
+
+/* ─── 날짜 입력 섹션 ─────────────────────────────────────────────────── */
+.inbound-info__date-section {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.inbound-info__date-label {
+  display: block;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.inbound-info__required {
+  color: #c00;
+  margin-left: 2px;
+}
+
+.inbound-info__date-options {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.inbound-info__date-options label {
+  font-size: 20px;
+  color: #333;
+  cursor: pointer;
+}
+
+/* (2) 연월일 다이얼 (<select>) */
+.inbound-info__date-pickers {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.inbound-info__select {
+  width: 80px;
+  height: 36px;
+  padding: 4px 8px;
+  font-size: 20px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #fff;
+  color: #333;
+  appearance: none; /* 기본 화살표 숨기거나 xx 필요 시 커스터마이징 */
+}
+
+/* 년/월/일 각각 조금씩 폭 조정 */
+.inbound-info__select--year {
+   flex: 2;     /* 비율 2 : 월 비율 1 : 일 비율 1 */
+  min-width: 0;
+}
+.inbound-info__select--month {
+    flex: 1;
+  min-width: 0;
+}
+.inbound-info__select--day {
+    flex: 1;
+  min-width: 0;
+}
+
+/* (3) 날짜 초기화 버튼 */
+.inbound-info__clear-date-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  margin-left: 4px;
+}
+
+
+/* ─── 수량 입력 섹션 ─────────────────────────────────────────────────── */
+.inbound-info__quantity-section {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.inbound-info__quantity-label {
+  display: block;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.inbound-info__quantity-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inbound-info__quantity-btn {
+   flex: 1;
+  min-width: 0;
+  height: 32px;
+  border: 1px solid #2E7D32;
+  border-radius: 4px;
+  font-size: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  background-color: #fff;
+  color: #2E7D32;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.inbound-info__quantity-btn--minus {
+  background-color: #c00;
+  color: #fff;
+  border-color: #c00;
+}
+
+.inbound-info__quantity-btn--plus {
+  background-color: #2E7D32;
+  color: #fff;
+  border-color: #2E7D32;
+}
+
+.inbound-info__quantity-value {
+  width: 40px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* ─── 페이지 네비게이션 (번호 표시 + 화살표) ─────────────────── */
+.inbound-info__pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.inbound-info__page-btn {
+  width: 44px;
+  height: 44px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #fff;
+  color: #333;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.inbound-info__page-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.inbound-info__page-indicator {
+  flex: 1;
+  padding: 8px;
+  font-size: 24px;
+  font-weight: bold;
+  border-radius: 4px;
+  text-align: center;
+  background-color: #fff;
+  color: #333;
+}
+
+
+
+/* Footer */
+.warehouse__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #fff;
+  border-top: 1px solid #e0e0e0;
+}
+
+.warehouse__back-btn {
+  flex: 1;
+  text-align: center;
+  padding: 12px 0;
+  font-size: 16px;
+  background-color: #fff;
+  color: #377fd3;
+  border: 1px solid #377fd3;
+  border-radius: 8px;
+  text-decoration: none;
+  margin-right: 8px;
+}
+
+.warehouse__next-btn {
+  flex: 1;
+  text-align: center;
+  padding: 12px 0;
+  font-size: 16px;
+  background-color: #377fd3;
+  border: 1px solid #377fd3;
+  color: #fff;
+  border-radius: 8px;
+  text-decoration: none;
+  margin-left: 8px;
+}
