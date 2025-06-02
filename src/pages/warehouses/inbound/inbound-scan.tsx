@@ -24,7 +24,6 @@ interface ProductRow {
 }
 
 export default function InboundScan() {
-  // URL 파라미터: whId(창고 ID), sId(출발지 ID)
   const { whId, sId } = useParams<"whId" | "sId">();
 
   // 1) 구글 시트에서 로드된 상품 데이터
@@ -34,7 +33,7 @@ export default function InboundScan() {
   // 2) 스캔된 항목 목록
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>(INITIAL_SCANNED_ITEMS);
 
-  // 3) 출발지 라벨 (SOURCES에서 sId와 매칭되는 label)
+  // 3) 출발지 라벨
   const sourceLabel =
     SOURCES.find((src) => src.id === sId)?.label || sId || "출발지";
 
@@ -85,13 +84,11 @@ export default function InboundScan() {
       // 7-3) 중복 스캔 방지
       if (scannedItems.find((it) => it.barcode === trimmed)) {
         alert(`이미 추가된 바코드입니다: ${trimmed}`);
-
-        // → **stop() 없이, 1초 동안만 일시정지**
-        pauseRef.current = true;
-        setTimeout(() => {
-          pauseRef.current = false;
-        }, 1000);
-
+        // 중복일 때도 “스캐너 닫기”
+        if (scannerRef.current) {
+          scannerRef.current.stop();
+        }
+        setShowScanner(false);
         return;
       }
 
@@ -102,12 +99,11 @@ export default function InboundScan() {
       });
       if (!found) {
         alert(`스프레드시트에 등록되지 않은 바코드입니다: ${trimmed}`);
-
-        pauseRef.current = true;
-        setTimeout(() => {
-          pauseRef.current = false;
-        }, 1000);
-
+        // 등록 안 된 경우에도 스캐너 닫기
+        if (scannerRef.current) {
+          scannerRef.current.stop();
+        }
+        setShowScanner(false);
         return;
       }
 
@@ -128,17 +124,11 @@ export default function InboundScan() {
 
       setScannedItems((prev) => [newItem, ...prev]);
 
-      // 7-6) “신규 아이템 스캔”인 경우에만 스캐너 닫기
+      // 7-6) 신규 아이템 스캔 시 스캐너 닫기
       if (scannerRef.current) {
         scannerRef.current.stop();
       }
       setShowScanner(false);
-
-      // 7-7) 중복 방지를 위해 1초 일시정지
-      pauseRef.current = true;
-      setTimeout(() => {
-        pauseRef.current = false;
-      }, 1000);
     },
     [googleProducts, loadingSheet, scannedItems, sourceLabel, whId]
   );
@@ -162,7 +152,6 @@ export default function InboundScan() {
   // 9) 스캔 열기/닫기 토글 핸들러
   const toggleScanner = () => {
     if (showScanner) {
-      // “닫기” 시 카메라 스트림 완전 중지
       if (scannerRef.current) {
         scannerRef.current.stop();
       }
@@ -187,9 +176,7 @@ export default function InboundScan() {
       {/* — 구글 시트 로딩 상태 표시 — */}
       <div style={{ padding: "0 16px 8px" }}>
         {loadingSheet && <p>스프레드시트 데이터 불러오는 중…</p>}
-        {!loadingSheet && (
-          <p>총 상품 개수: {googleProducts.length}개</p>
-        )}
+        {!loadingSheet && <p>총 상품 개수: {googleProducts.length}개</p>}
       </div>
 
       {/* — Main Content — */}
@@ -273,7 +260,9 @@ export default function InboundScan() {
                     </span>
                   </div>
                   {/* 번호 */}
-                  <div className="inbound-scan__cell inbound-scan__cell--no">{idx + 1}</div>
+                  <div className="inbound-scan__cell inbound-scan__cell--no">
+                    {idx + 1}
+                  </div>
                   {/* 물품명 */}
                   <div className="inbound-scan__cell inbound-scan__cell--name">
                     {item.name}
