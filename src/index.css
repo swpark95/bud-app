@@ -141,9 +141,9 @@ body {
 .inbound-scan__camera {
   position: relative;
   width: 100%;
-  height: 200px;       /* 카메라 높이를 원하는 만큼 조정 (예: 300px) */
+  height: 200px;
   margin-bottom: 16px;
-  background: #000;    /* 검은 배경 위에 비디오가 올라오는 형태 */
+  background: #000;
   overflow: hidden;
 }
 
@@ -154,8 +154,9 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  overflow: hidden; 
+  overflow: hidden;
 }
+
 /* 3) 실제 <video> 스타일: 래퍼보다 더 크게 그려서, 스캔 영역 (노란 박스)만 보이게 한다. */
 .barcode-scanner__wrapper video {
   position: absolute;
@@ -171,56 +172,56 @@ body {
 
 .scan-border {
   position: absolute;
-  top: 15%;            /* 컨테이너(300px)의 35% 지점에서 시작 → (300 * 0.35 ≒ 105px) */
-  left: 10%;           /* 컨테이너 너비의 10% 지점에서 시작 */
-  width: 80%;          /* 가로 너비 80% */
-  height: 70%;         /* 세로 높이 30% → (300 * 0.30 = 90px) */
+  top: 27.5%;          /* (100 - 45) / 2 = 27.5% */
+  left: 10%;
+  width: 80%;
+  height: 45%;         /*  기존 30% → 45% (1.5배 증가) */
   border: 2px solid yellow;
   box-sizing: border-box;
-  pointer-events: none; /* 클릭 이벤트는 투과되게 */
+  pointer-events: none;
 }
 
-/* ────── 4. 바깥을 덮는 검정 반투명 OVERLAY 4개 ────── */
-/*   top:     카메라 영역의 위쪽 전체를 어둡게 */
+
+/* ────── 4. 오버레이 4개 ────── */
+/* ① 위쪽 오버레이: 노란 사각형 위(27.5%)만큼 덮음 */
 .scan-overlay-top {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
-  height: 35%;         /* 노란 사각형 위 여백 = 35% */
+  height: 27.5%;
   background-color: rgba(0, 0, 0, 0.5);
   pointer-events: none;
 }
-
-/*   bottom:  카메라 영역의 아래쪽 전체를 어둡게 */
+/* ② 아래쪽 오버레이: 노란 사각형 아래(27.5%) */
 .scan-overlay-bottom {
   position: absolute;
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 35%;         /* 노란 사각형 아래 여백 = 35% */
+  height: 27.5%;
   background-color: rgba(0, 0, 0, 0.5);
   pointer-events: none;
 }
 
-/*   left:    카메라 영역의 왼쪽 중앙 부분을 어둡게 */
+/* ③ 왼쪽 오버레이: 노란 사각형 좌우 영역 중 왼쪽 10% 너비, 세로는 45% */
 .scan-overlay-left {
   position: absolute;
-  top: 35%;            /* 노란 사각형 세로 시작점과 동일 */
+  top: 27.5%;
   left: 0;
-  width: 10%;          /* 노란 사각형 왼쪽 여백 = 10% */
-  height: 30%;         /* 노란 사각형 세로 높이(30%)와 동일 */
+  width: 10%;
+  height: 45%;
   background-color: rgba(0, 0, 0, 0.5);
   pointer-events: none;
 }
 
-/*   right:   카메라 영역의 오른쪽 중앙 부분을 어둡게 */
+/* ④ 오른쪽 오버레이: 노란 사각형 우측 10% */
 .scan-overlay-right {
   position: absolute;
-  top: 35%;            /* 노란 사각형과 동일 */
+  top: 27.5%;
   right: 0;
-  width: 10%;          /* 노란 사각형 오른쪽 여백 = 10% */
-  height: 30%;         /* 노란 사각형 세로 높이 = 30% */
+  width: 10%;
+  height: 45%;
   background-color: rgba(0, 0, 0, 0.5);
   pointer-events: none;
 }
