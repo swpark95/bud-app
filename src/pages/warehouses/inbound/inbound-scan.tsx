@@ -55,17 +55,18 @@ export default function InboundScan() {
   useEffect(() => {
     const csvUrl =
       "https://docs.google.com/spreadsheets/d/e/2PACX-1vRLnytTHTeCyJyQTKSC82h7zji6PqCPmG2gz-0-gvYFeop-iEhvFXnwi-EOGHQJyVqhlIbneHLTUinL/pub?gid=0&single=true&output=csv";
-
     setLoadingSheet(true);
     Papa.parse<ProductRow>(csvUrl, {
       download: true,
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
+        console.log("CSV에서 불러온 데이터:", results.data);
         setGoogleProducts(results.data);
         setLoadingSheet(false);
       },
       error: () => {
+        console.error("CSV 파싱 에러:");
         setLoadingSheet(false);
       },
     });
@@ -75,61 +76,60 @@ export default function InboundScan() {
   // ─── 바코드 인식 성공 시 호출되는 콜백 ──────────────────────────────────────────
   const handleDetected = useCallback(
     (barcodeText: string) => {
+      console.log("▶️ onDetected 호출됨: barcodeText =", barcodeText);
       // 7-1) 일시정지 중이면 무시
       if (pauseRef.current) return;
-
       // 7-2) 시트 로딩 중이거나 데이터가 없으면 무시
       if (loadingSheet || googleProducts.length === 0) return;
+  
+      // ① 스캐너가 넘겨준 문자열에서 앞뒤 공백 제거
+      const rawScanned = barcodeText.trim();
+      // ② 숫자 외 모든 문자(공백, 특수문자) 제거
+      const cleanScanned = rawScanned.replace(/[^\d]/g, "");
+      console.log("   ► cleanScanned =", cleanScanned);
 
-      const trimmed = barcodeText.trim();
-
-      // 7-3) 중복 스캔 방지
-      if (scannedItems.find((it) => it.barcode === trimmed)) {
-        alert(`이미 추가된 바코드입니다: ${trimmed}`);
-        // 중복일 때도 “스캐너 닫기”
-        if (scannerRef.current) {
-          scannerRef.current.stop();
-        }
+      // ③ 중복 스캔 검사: (기존 scannedItems 대신 ref 기반 Set으로 관리할 수도 있지만, 이 예시에서는 생략)
+      if (scannedItems.find((it) => it.barcode === cleanScanned)) {
+        alert(`이미 추가된 바코드입니다: ${cleanScanned}`);
+        scannerRef.current?.stop();
         setShowScanner(false);
         return;
       }
-
-      // 7-4) 구글 시트 데이터에서 매칭
+  
+      // ④ 구글 시트 데이터에서 매칭 (셀 데이터에도 클린업 적용)
       const found = googleProducts.find((prod) => {
-        const prodBarcode = prod.바코드 ?? "";
-        return prodBarcode.trim() === trimmed;
+        const rawProd = (prod.바코드 ?? "").trim();
+        const cleanProd = rawProd.replace(/[^\d]/g, "");
+        return cleanProd === cleanScanned;
       });
       if (!found) {
-        alert(`스프레드시트에 등록되지 않은 바코드입니다: ${trimmed}`);
-        // 등록 안 된 경우에도 스캐너 닫기
-        if (scannerRef.current) {
-          scannerRef.current.stop();
-        }
+        alert(`스프레드시트에 등록되지 않은 바코드입니다: ${cleanScanned}`);
+        scannerRef.current?.stop();
         setShowScanner(false);
         return;
       }
-
-      // 7-5) 신규 바코드인 경우: 목록에 추가
+  
+      // ⑤ found 가 있으면, 클린업된 cleanScanned 또는 rawProd 둘 중 하나를 선택해 newItem.barcode에 넣어도 무방
       const warehouseLabel =
         WAREHOUSES.find((w) => w.id === whId)?.label ?? whId ?? "";
-
+  
       const newItem: ScannedItem = {
         id: (found.ID ?? "").trim(),
         name: (found.상품명 ?? "").trim(),
+        // → stock, size, category, source, dest 등 그대로 사용
         stock: (found.현재고 ?? "").trim(),
         size: (found.규격 ?? "").trim(),
-        barcode: trimmed,
+        // barcode: cleanScanned // 또는 rawProd.replace(/[^\d]/g, "") 
+        barcode: cleanScanned,
         category: (found.카테고리 ?? "").trim(),
         source: sourceLabel,
         dest: warehouseLabel,
       };
-
+  
       setScannedItems((prev) => [newItem, ...prev]);
-
-      // 7-6) 신규 아이템 스캔 시 스캐너 닫기
-      if (scannerRef.current) {
-        scannerRef.current.stop();
-      }
+  
+      // ⑥ 신규 아이템 스캔 시 스캐너 닫기
+      scannerRef.current?.stop();
       setShowScanner(false);
     },
     [googleProducts, loadingSheet, scannedItems, sourceLabel, whId]
