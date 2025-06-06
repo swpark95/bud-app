@@ -362,11 +362,12 @@ const BarcodeScanner = forwardRef<
         style={{
           position: "relative",
           width: "100%",
-          height: "100%",
+          height: "200px", // 카메라 영역 높이를 200px로 고정
           overflow: "hidden",
+          backgroundColor: "transparent", // 반드시 투명으로 설정
         }}
       >
-        {/* 1) 절대 위치로 가운데 Cropping, CSS scale 적용 */}
+        {/* 1) 절대 위치(center-crop) + CSS scale 적용 */}
         <video
           ref={videoRef}
           style={{
@@ -374,9 +375,9 @@ const BarcodeScanner = forwardRef<
             top: "50%",
             left: "50%",
 
-            /* 컨테이너 높이를 기준으로 최초 가득 채우고, 넘치는 가로 부분을 자름 */
-            width: "auto",
-            height: "100%",
+            /* 어느 기기에서도 빈틈 없이 채우도록 */
+            minWidth: "100%",
+            minHeight: "100%",
             objectFit: "cover",
 
             /* 중앙 정렬 후 scale 적용 */
@@ -404,21 +405,21 @@ const BarcodeScanner = forwardRef<
             fontSize: "16px",
           }}
         >
-          {torchOn ? "🔦 손전등 끄기" : "🔦 손전등 켜기"}
+          {torchOn ? "🔦 Off" : "🔦 On"}
         </button>
 
-        {/* 3) 줌 슬라이더: 아래에서 좀 더 띄우고 위/아래 padding */}
+        {/* 3) 줌 슬라이더: 노란 테두리 바로 바깥(하단에서 8px 위)에 위치 */}
         {zoomSupported && (
           <div
             style={{
               position: "absolute",
-              bottom: "32px",      /* 바닥에서 충분히 띄움 */
+              bottom: "8px",       /* 노란 테두리 바로 아래에 위치 */
               left: "50%",
               transform: "translateX(-50%)",
               width: "90%",
               zIndex: 999,
 
-              padding: "8px 0",    /* 위/아래 마진을 줘서 노란 테두리와 간격 확보 */
+              padding: "8px 0",     /* 위/아래 여백 8px씩 추가 */
             }}
           >
             <input
@@ -436,7 +437,7 @@ const BarcodeScanner = forwardRef<
                 background: "rgba(255,255,255,0.3)",
                 outline: "none",
 
-                /* 슬라이더 thumb 영역을 살짝 늘리고 싶다면 padding 추가 가능 */
+                /* 슬라이더 thumb 영역 padding */
                 padding: "4px 0",
               }}
             />
