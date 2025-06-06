@@ -387,15 +387,15 @@ body {
 
 /* ─── 스캔된 물품 카드 ─────────────────────────────────────────────────── */
 .inbound-info__card {
-  flex: 1;                  /* ② 이 영역이 .inbound-info__content의 남은 세로공간을 전부 채움 */
-  margin-bottom: 16px;      /* 카드 아래에 날짜 섹션과 들러붙지 않도록 여유 간격 */
-  
-  /* 카드 내부 내용이 많아질 때만 스크롤을 주고 싶으면: */
-  overflow-y: auto;
-  
+  flex: none;                /* flex-grow:0, flex-shrink:0 상태로 고정 */
+  /* (부모 높이의 45% 정도만 차지하도록 예시) */
+  height: 45vh;              
+  margin-bottom: 16px;
+  overflow-y: auto;          /* 내부에 컨텐츠가 넘칠 때만 스크롤바 표시 */
   background-color: #fff;
   border-radius: 8px;
   padding: 16px;
+  box-sizing: border-box;
 }
 
 .inbound-info__card-header {
@@ -664,6 +664,19 @@ body {
   background-color: #377fd3;
   border: 1px solid #377fd3;
   color: #fff;
+  border-radius: 8px;
+  text-decoration: none;
+  margin-left: 8px;
+}
+
+.warehouse__next-btn:disabled {
+  flex: 1;
+  text-align: center;
+  padding: 12px 0;
+  font-size: 16px;
+  background-color: #E0E0E0;
+  border: 1px solid #E0E0E0;
+  color: #9E9E9E;
   border-radius: 8px;
   text-decoration: none;
   margin-left: 8px;
