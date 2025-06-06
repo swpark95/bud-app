@@ -6,6 +6,7 @@ import React, {
   useImperativeHandle,
   forwardRef,
   useState,
+  useCallback,
 } from "react";
 import {
   BrowserMultiFormatReader,
@@ -17,18 +18,13 @@ import {
 } from "@zxing/library";
 
 export interface BarcodeScannerProps {
-  /**
-   * 바코드 텍스트가 감지되면 호출됩니다.
-   * resultPoints 배열을 통해 스캔 위치 좌표를 받을 수 있습니다.
-   */
   onDetected: (
     barcodeText: string,
     resultPoints: { getX(): number; getY(): number }[]
   ) => void;
   onError: (error: Error) => void;
   /**
-   * 개발용: 전면 카메라도 시도하려면 true.
-   * 배포 시 false로 두면 오직 후면 카메라만 사용합니다.
+   * If true, after failing the back camera it will try the front camera.
    */
   fallbackToFrontCameraForTest?: boolean;
 }
@@ -52,27 +48,33 @@ const BarcodeScanner = forwardRef<
     const controlsRef = useRef<IScannerControls | null>(null);
     const initializedRef = useRef<boolean>(false);
 
-    /** 슬라이더를 통한 줌 레벨 (카메라가 지원하지 않으면 숨김) */
-    const [zoomSupported, setZoomSupported] = useState(false);
-    const [zoomValue, setZoomValue] = useState(1);
-    const [zoomMinMax, setZoomMinMax] = useState<{
+    /** Zoom state (CSS scale) */
+    const [zoomValue, setZoomValue] = useState<number>(1);
+    const [zoomSupported, setZoomSupported] = useState<boolean>(false);
+    const [zoomCaps, setZoomCaps] = useState<{
       min: number;
       max: number;
       step: number;
     }>({ min: 1, max: 1, step: 0.1 });
 
-    // 부모가 stop()을 호출할 수 있도록 노출
+    /** Torch on/off state */
+    const [torchOn, setTorchOn] = useState<boolean>(false);
+
+    /** Debounce timer for hardware zoom */
+    const zoomTimeoutRef = useRef<number | null>(null);
+
+    // Expose stop() to parent
     useImperativeHandle(ref, () => ({
       stop: () => {
         if (controlsRef.current) {
           try {
             controlsRef.current.stop();
             console.log(
-              "[BarcodeScanner] 외부 stop() 호출됨 → 스캐너 중지"
+              "[BarcodeScanner] External stop() → scanner stopped"
             );
           } catch (e: unknown) {
             console.warn(
-              "[BarcodeScanner] 외부 stop() 중 오류:",
+              "[BarcodeScanner] External stop() error:",
               e
             );
           }
@@ -81,7 +83,7 @@ const BarcodeScanner = forwardRef<
           try {
             (codeReaderRef.current as any).reset();
             console.log(
-              "[BarcodeScanner] 외부 reset() 호출됨 → 스캐너 초기화"
+              "[BarcodeScanner] External reset() → scanner reset"
             );
           } catch {}
         }
@@ -89,22 +91,18 @@ const BarcodeScanner = forwardRef<
     }));
 
     useEffect(() => {
-      // StrictMode나 리렌더링 방지: 한 번만 초기화
-      if (initializedRef.current) {
-        return;
-      }
+      // Prevent double-init under StrictMode
+      if (initializedRef.current) return;
       initializedRef.current = true;
 
       if (!videoRef.current) {
-        console.warn("[BarcodeScanner] videoRef가 설정되지 않음.");
+        console.warn("[BarcodeScanner] videoRef not set.");
         return;
       }
 
-      console.log(
-        "[BarcodeScanner] useEffect 시작 → 카메라 초기화 시도"
-      );
+      console.log("[BarcodeScanner] Initializing camera…");
 
-      // ─── 1) ZXing 디코딩 힌트 설정 ───────────────────────────────────
+      // 1) ZXing hints
       const hints = new Map<DecodeHintType, any>();
       hints.set(DecodeHintType.POSSIBLE_FORMATS, [
         BarcodeFormat.EAN_13,
@@ -118,79 +116,39 @@ const BarcodeScanner = forwardRef<
       const codeReader = new BrowserMultiFormatReader(hints);
       codeReaderRef.current = codeReader;
 
-      // ─── 2) 토치(손전등) 활성화 함수 ─────────────────────────────────
-      const enableTorch = () => {
-        if (!videoRef.current) return;
-        const stream = videoRef.current.srcObject as
-          | MediaStream
-          | null;
-        if (!stream) return;
-
-        const track = stream.getVideoTracks()[0];
-        if (!track) {
-          console.warn("[BarcodeScanner] 비디오 트랙을 찾을 수 없음");
-          return;
-        }
-
-        const capabilities = (track.getCapabilities() as any);
-        if (capabilities.torch) {
-          (track as any)
-            .applyConstraints({
-              advanced: [{ torch: true }],
-            })
-            .then(() => {
-              console.log(
-                "[BarcodeScanner] 토치(손전등) 활성화됨"
-              );
-            })
-            .catch((e: unknown) => {
-              console.warn(
-                "[BarcodeScanner] 토치 활성화 실패:",
-                e
-              );
-            });
-        } else {
-          console.log("[BarcodeScanner] 토치 미지원 카메라");
-        }
-      };
-
-      // ─── 3) 줌(Zoom) 초기화 ─────────────────────────────────────────
+      // 2) Zoom initialization once stream is live
       const initZoom = () => {
-        if (!videoRef.current) return;
-        const stream = videoRef.current.srcObject as
-          | MediaStream
-          | null;
+        const stream = videoRef.current!.srcObject as MediaStream | null;
         if (!stream) return;
-
         const track = stream.getVideoTracks()[0];
         if (!track) return;
 
         const caps = (track.getCapabilities() as any);
         if ("zoom" in caps) {
-          const { min, max, step } = (caps.zoom as {
+          const { min, max, step } = caps.zoom as {
             min: number;
             max: number;
             step: number;
-          });
+          };
           setZoomSupported(true);
-          setZoomMinMax({ min, max, step });
+          setZoomCaps({ min, max, step });
           setZoomValue(min);
 
+          // Initially set hardware zoom to min
           ;(track as any)
             .applyConstraints({ advanced: [{ zoom: min }] })
             .catch(() => {
-              /* 무시 */
+              /* ignore if it fails */
             });
         } else {
           setZoomSupported(false);
         }
       };
 
-      // ─── 4) 카메라 시도 순서 정의 ──────────────────────────────────────
+      // 3) Invoke ZXing reader with constraints
       const startScannerWithConstraints = (
         facingMode: "environment" | "user"
       ) => {
-        // 고해상도로 요청 (작은 바코드 인식 돕기)
         const constraints: MediaStreamConstraints = {
           video: {
             facingMode,
@@ -200,7 +158,7 @@ const BarcodeScanner = forwardRef<
         };
 
         console.log(
-          `[BarcodeScanner] facingMode='${facingMode}' 시도 (1280x720)`
+          `[BarcodeScanner] Trying camera: ${facingMode}`
         );
 
         return codeReader.decodeFromConstraints(
@@ -211,21 +169,21 @@ const BarcodeScanner = forwardRef<
               const text = result.getText().trim();
               const points = result.getResultPoints();
               console.log(
-                `[BarcodeScanner] (${facingMode}) 바코드 인식 →`,
+                `[BarcodeScanner] (${facingMode}) detected →`,
                 text
               );
               onDetected(text, points);
 
-              // 인식되면 자동 중지
+              // Stop scanner once detected
               if (controlsRef.current) {
                 try {
                   controlsRef.current.stop();
                   console.log(
-                    `[BarcodeScanner] (${facingMode}) controls.stop() → 스캐너 중지`
+                    `[BarcodeScanner] (${facingMode}) scanner stopped`
                   );
                 } catch (e: unknown) {
                   console.warn(
-                    `[BarcodeScanner] (${facingMode}) stop 중 오류:`,
+                    `[BarcodeScanner] (${facingMode}) stop error:`,
                     e
                   );
                 }
@@ -233,7 +191,7 @@ const BarcodeScanner = forwardRef<
             }
             if (err && err.name !== "NotFoundException") {
               console.error(
-                `[BarcodeScanner] (${facingMode}) 스캔 에러:`,
+                `[BarcodeScanner] (${facingMode}) error:`,
                 err
               );
               onError(err as Error);
@@ -242,34 +200,32 @@ const BarcodeScanner = forwardRef<
         );
       };
 
-      // ── 5) 실제로 “후면→전면” 순으로 시도 ─────────────────────────────
+      // 4) Try back → front if allowed
       if (fallbackToFrontCameraForTest) {
         startScannerWithConstraints("environment")
           .then((controls) => {
             controlsRef.current = controls;
             console.log(
-              "[BarcodeScanner] 후면 카메라 성공 → controls 저장"
+              "[BarcodeScanner] Back camera succeeded"
             );
-            enableTorch();
             initZoom();
           })
           .catch((rearErr) => {
             console.warn(
-              "[BarcodeScanner] 후면 카메라 실패:",
+              "[BarcodeScanner] Back camera failed:",
               rearErr
             );
             return startScannerWithConstraints("user")
               .then((controls) => {
                 controlsRef.current = controls;
                 console.log(
-                  "[BarcodeScanner] 전면 카메라 성공 → controls 저장"
+                  "[BarcodeScanner] Front camera succeeded"
                 );
-                enableTorch();
                 initZoom();
               })
               .catch((frontErr) => {
                 console.error(
-                  "[BarcodeScanner] 전면 카메라 실패:",
+                  "[BarcodeScanner] Front camera failed:",
                   frontErr
                 );
                 onError(frontErr as Error);
@@ -280,30 +236,29 @@ const BarcodeScanner = forwardRef<
           .then((controls) => {
             controlsRef.current = controls;
             console.log(
-              "[BarcodeScanner] 후면 카메라 성공 → controls 저장"
+              "[BarcodeScanner] Back camera succeeded"
             );
-            enableTorch();
             initZoom();
           })
           .catch((rearErr) => {
             console.error(
-              "[BarcodeScanner] 후면 카메라 실패:",
+              "[BarcodeScanner] Back camera failed:",
               rearErr
             );
             onError(rearErr as Error);
           });
       }
 
-      // ─── 언마운트 시 정리 ──────────────────────────────────────────────
+      // 5) Cleanup on unmount
       return () => {
         console.log(
-          "[BarcodeScanner] 언마운트 → 스캐너 정리 시작"
+          "[BarcodeScanner] Unmounting → cleaning up"
         );
         if (controlsRef.current) {
           try {
             controlsRef.current.stop();
             console.log(
-              "[BarcodeScanner] 언마운트 시 controls.stop() 호출됨"
+              "[BarcodeScanner] controls.stop() called on unmount"
             );
           } catch {}
         }
@@ -311,19 +266,58 @@ const BarcodeScanner = forwardRef<
           try {
             (codeReaderRef.current as any).reset();
             console.log(
-              "[BarcodeScanner] 언마운트 시 codeReader.reset() 호출됨"
+              "[BarcodeScanner] codeReader.reset() called on unmount"
             );
           } catch {
             console.warn(
-              "[BarcodeScanner] reset() 메서드 없음, 무시"
+              "[BarcodeScanner] No reset() method; ignoring"
             );
           }
         }
       };
     }, [fallbackToFrontCameraForTest, onDetected, onError]);
 
-    /** 줌 슬라이더가 변경될 때 호출 */
-    const onZoomChange = (newZoom: number) => {
+    /** Debounced setter for hardware zoom → applyConstraints */
+    const applyHardwareZoom = useCallback(
+      (newZoom: number) => {
+        if (!videoRef.current) return;
+        const stream = videoRef.current.srcObject as
+          | MediaStream
+          | null;
+        if (!stream) return;
+        const track = stream.getVideoTracks()[0];
+        if (!track) return;
+
+        (track as any)
+          .applyConstraints({ advanced: [{ zoom: newZoom }] })
+          .catch((e: unknown) => {
+            console.warn(
+              "[BarcodeScanner] hardware zoom failed:",
+              e
+            );
+          });
+      },
+      []
+    );
+
+    /** Called on slider change */
+    const onZoomSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newZoom = parseFloat(e.currentTarget.value);
+      setZoomValue(newZoom);
+
+      // Clear any pending timeout
+      if (zoomTimeoutRef.current != null) {
+        window.clearTimeout(zoomTimeoutRef.current);
+      }
+      // Debounce hardware zoom: only apply after 100ms of no further changes
+      zoomTimeoutRef.current = window.setTimeout(() => {
+        applyHardwareZoom(newZoom);
+        zoomTimeoutRef.current = null;
+      }, 100);
+    };
+
+    /** Toggle torch on/off */
+    const toggleTorch = () => {
       if (!videoRef.current) return;
       const stream = videoRef.current.srcObject as
         | MediaStream
@@ -332,13 +326,30 @@ const BarcodeScanner = forwardRef<
       const track = stream.getVideoTracks()[0];
       if (!track) return;
 
-      ;(track as any)
-        .applyConstraints({ advanced: [{ zoom: newZoom }] })
+      const caps = (track.getCapabilities() as any);
+      if (!caps.torch) {
+        alert("Torch not supported on this camera.");
+        return;
+      }
+
+      const newTorch = !torchOn;
+      (track as any)
+        .applyConstraints({
+          advanced: [{ torch: newTorch }],
+        })
         .then(() => {
-          setZoomValue(newZoom);
+          setTorchOn(newTorch);
+          console.log(
+            `[BarcodeScanner] torch ${
+              newTorch ? "enabled" : "disabled"
+            }`
+          );
         })
         .catch((e: unknown) => {
-          console.warn("[BarcodeScanner] 줌 설정 실패:", e);
+          console.warn(
+            "[BarcodeScanner] torch toggle failed:",
+            e
+          );
         });
     };
 
@@ -349,44 +360,82 @@ const BarcodeScanner = forwardRef<
           width: "100%",
           height: "100%",
           overflow: "hidden",
+          backgroundColor: "#000",
         }}
       >
+        {/* Video feed. We apply CSS scale for smooth zoom feedback. */}
         <video
           ref={videoRef}
           style={{
             width: "100%",
             height: "100%",
             objectFit: "cover",
+            transform: `scale(${zoomValue})`,
+            transition: "transform 0.15s ease-out",
           }}
           muted
           playsInline
         />
 
-        {/* ─── 줌 슬라이더 (지원되는 경우에만 렌더링) ──────────────────────── */}
+        {/* Torch toggle button (top-right) */}
+        <button
+          onClick={toggleTorch}
+          style={{
+            position: "absolute",
+            top: "12px",
+            right: "12px",
+            zIndex: 1000,
+            background: "rgba(0,0,0,0.5)",
+            border: "none",
+            borderRadius: "4px",
+            padding: "8px",
+            color: "#fff",
+            cursor: "pointer",
+            fontSize: "16px",
+          }}
+        >
+          {torchOn ? "🔦 Off" : "🔦 On"}
+        </button>
+
+        {/* Zoom slider, only if supported */}
         {zoomSupported && (
-          <input
-            type="range"
-            min={zoomMinMax.min}
-            max={zoomMinMax.max}
-            step={zoomMinMax.step}
-            value={zoomValue}
-            onChange={(
-              e: React.ChangeEvent<HTMLInputElement>
-            ) =>
-              onZoomChange(parseFloat(e.currentTarget.value))
-            }
+          <div
             style={{
               position: "absolute",
               bottom: "16px",
               left: "50%",
               transform: "translateX(-50%)",
-              width: "80%",
+              width: "90%",            // Make slider span 90% of container
+              padding: "0 12px",       // Add horizontal padding
               zIndex: 999,
             }}
-          />
+          >
+            <input
+              type="range"
+              min={zoomCaps.min}
+              max={zoomCaps.max}
+              step={zoomCaps.step}
+              value={zoomValue}
+              onChange={onZoomSliderChange}
+              style={{
+                width: "100%",
+                // Bump up the thumb hit area via pseudo‐styles:
+                WebkitAppearance: "none",
+                height: "8px",
+                borderRadius: "4px",
+                background: "rgba(255,255,255,0.3)",
+                outline: "none",
+              }}
+            />
+            {/* 
+              Note: You can optionally add CSS for the ::-webkit-slider-thumb 
+              to increase its size and clickable area. For brevity, I'm relying 
+              on the extra padding around the input container. 
+            */}
+          </div>
         )}
 
-        {/* ─── 스캔 영역 가이드 오버레이 ─────────────────────────────────── */}
+        {/* Scan‐area overlays */}
         <div className="scan-overlay-top" />
         <div className="scan-overlay-bottom" />
         <div className="scan-overlay-left" />
