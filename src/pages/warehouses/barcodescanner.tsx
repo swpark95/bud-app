@@ -65,9 +65,6 @@ const BarcodeScanner = forwardRef<
     /** 토치 상태 */
     const [torchOn, setTorchOn] = useState<boolean>(false);
 
-    /** 하드웨어 줌 디바운스 타이머 */
-    const zoomTimeoutRef = useRef<number | null>(null);
-
     // 부모가 stop()을 호출할 수 있게끔 노출
     useImperativeHandle(ref, () => ({
       stop: () => {
@@ -137,11 +134,11 @@ const BarcodeScanner = forwardRef<
           };
           setZoomSupported(true);
           setZoomCaps({ min, max, step });
-          setZoomValue(min);
+          setZoomValue(1); // 초기값을 1배 줌으로 설정
 
           // 초기 하드웨어 줌 값 설정
           ;(track as any)
-            .applyConstraints({ advanced: [{ zoom: min }] })
+            .applyConstraints({ advanced: [{ zoom: 1 }] })
             .catch(() => {
               /* 무시 */
             });
@@ -282,7 +279,7 @@ const BarcodeScanner = forwardRef<
       };
     }, [fallbackToFrontCameraForTest, onDetected, onError]);
 
-    /** 디바운스 후 하드웨어 줌 적용 */
+    /** 하드웨어 줌 적용 */
     const applyHardwareZoom = useCallback(
       (newZoom: number) => {
         if (!videoRef.current) return;
@@ -305,19 +302,13 @@ const BarcodeScanner = forwardRef<
       []
     );
 
-    /** 슬라이더 변경 시 호출 */
-    const onZoomSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newZoom = parseFloat(e.currentTarget.value);
-      setZoomValue(newZoom);
-
-      // 디바운스: 100ms 후에 하드웨어 줌 적용
-      if (zoomTimeoutRef.current != null) {
-        window.clearTimeout(zoomTimeoutRef.current);
-      }
-      zoomTimeoutRef.current = window.setTimeout(() => {
-        applyHardwareZoom(newZoom);
-        zoomTimeoutRef.current = null;
-      }, 100);
+    /** 줌 버튼 클릭 시 호출 */
+    const onZoomButtonClick = (factor: number) => {
+      // 줌 캡을 넘지 않도록 clamp
+      const clamped = Math.min(Math.max(factor, zoomCaps.min), zoomCaps.max);
+      setZoomValue(clamped);
+      // 즉시 하드웨어 줌 적용
+      applyHardwareZoom(clamped);
     };
 
     /** 토치 토글 */
@@ -364,7 +355,7 @@ const BarcodeScanner = forwardRef<
           width: "100%",
           height: "200px", // 카메라 영역 높이를 200px로 고정
           overflow: "hidden",
-          backgroundColor: "transparent", // 반드시 투명으로 설정
+          backgroundColor: "transparent",
         }}
       >
         {/* 1) 절대 위치(center-crop) + CSS scale 적용 */}
@@ -375,7 +366,7 @@ const BarcodeScanner = forwardRef<
             top: "50%",
             left: "50%",
 
-            /* 어느 기기에서도 빈틈 없이 채우도록 */
+            /* 어느 기기에서도 빈틈 없이 채우기 위해 */
             minWidth: "100%",
             minHeight: "100%",
             objectFit: "cover",
@@ -408,39 +399,42 @@ const BarcodeScanner = forwardRef<
           {torchOn ? "🔦 Off" : "🔦 On"}
         </button>
 
-        {/* 3) 줌 슬라이더: 노란 테두리 바로 바깥(하단에서 8px 위)에 위치 */}
+        {/* 3) 줌 배율 버튼 (1×, 1.5×, 2×) */}
         {zoomSupported && (
           <div
             style={{
               position: "absolute",
-              bottom: "8px",       /* 노란 테두리 바로 아래에 위치 */
+              bottom: "8px",       // 노란 테두리 바로 아래 위치
               left: "50%",
               transform: "translateX(-50%)",
-              width: "90%",
+              display: "flex",
+              gap: "8px",
               zIndex: 999,
-
-              padding: "8px 0",     /* 위/아래 여백 8px씩 추가 */
             }}
           >
-            <input
-              type="range"
-              min={zoomCaps.min}
-              max={zoomCaps.max}
-              step={zoomCaps.step}
-              value={zoomValue}
-              onChange={onZoomSliderChange}
-              style={{
-                width: "100%",
-                WebkitAppearance: "none",
-                height: "8px",
-                borderRadius: "4px",
-                background: "rgba(255,255,255,0.3)",
-                outline: "none",
-
-                /* 슬라이더 thumb 영역 padding */
-                padding: "4px 0",
-              }}
-            />
+            {[1, 1.5, 2].map((factor) => {
+              // 줌 캡 범위 내에 있어야 버튼 활성화
+              const isEnabled = factor >= zoomCaps.min && factor <= zoomCaps.max;
+              return (
+                <button
+                  key={factor}
+                  onClick={() => isEnabled && onZoomButtonClick(factor)}
+                  disabled={!isEnabled}
+                  style={{
+                    padding: "8px 12px",
+                    background: zoomValue === factor ? "#377fd3" : "#fff",
+                    color: zoomValue === factor ? "#fff" : "#333",
+                    border: "1px solid #ddd",
+                    borderRadius: "4px",
+                    fontSize: "14px",
+                    cursor: isEnabled ? "pointer" : "not-allowed",
+                    opacity: isEnabled ? 1 : 0.4,
+                  }}
+                >
+                  {factor}×
+                </button>
+              );
+            })}
           </div>
         )}
 
