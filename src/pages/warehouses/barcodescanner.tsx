@@ -404,7 +404,7 @@ const BarcodeScanner = forwardRef<
             fontSize: "16px",
           }}
         >
-          {torchOn ? "🔦 Off" : "🔦 On"}
+          {torchOn ? "🔦 손전등 끄기" : "🔦 손전등 켜기"}
         </button>
 
         {/* 3) 줌 슬라이더: 아래에서 좀 더 띄우고 위/아래 padding */}
