@@ -18,13 +18,18 @@ import {
 } from "@zxing/library";
 
 export interface BarcodeScannerProps {
+  /**
+   * 바코드 텍스트가 감지되면 호출됩니다.
+   * resultPoints 배열을 통해 스캔 위치 좌표를 받을 수 있습니다.
+   */
   onDetected: (
     barcodeText: string,
     resultPoints: { getX(): number; getY(): number }[]
   ) => void;
   onError: (error: Error) => void;
   /**
-   * If true, after failing the back camera it will try the front camera.
+   * 개발용: 전면 카메라도 시도하려면 true.
+   * 배포 시 false로 두면 오직 후면 카메라만 사용합니다.
    */
   fallbackToFrontCameraForTest?: boolean;
 }
@@ -48,7 +53,7 @@ const BarcodeScanner = forwardRef<
     const controlsRef = useRef<IScannerControls | null>(null);
     const initializedRef = useRef<boolean>(false);
 
-    /** Zoom state (CSS scale) */
+    /** 줌 상태 (CSS scale) */
     const [zoomValue, setZoomValue] = useState<number>(1);
     const [zoomSupported, setZoomSupported] = useState<boolean>(false);
     const [zoomCaps, setZoomCaps] = useState<{
@@ -57,13 +62,13 @@ const BarcodeScanner = forwardRef<
       step: number;
     }>({ min: 1, max: 1, step: 0.1 });
 
-    /** Torch on/off state */
+    /** 토치 상태 */
     const [torchOn, setTorchOn] = useState<boolean>(false);
 
-    /** Debounce timer for hardware zoom */
+    /** 하드웨어 줌 디바운스 타이머 */
     const zoomTimeoutRef = useRef<number | null>(null);
 
-    // Expose stop() to parent
+    // 부모가 stop()을 호출할 수 있게끔 노출
     useImperativeHandle(ref, () => ({
       stop: () => {
         if (controlsRef.current) {
@@ -91,7 +96,7 @@ const BarcodeScanner = forwardRef<
     }));
 
     useEffect(() => {
-      // Prevent double-init under StrictMode
+      // StrictMode나 리렌더링 방지: 한 번만 초기화
       if (initializedRef.current) return;
       initializedRef.current = true;
 
@@ -102,7 +107,7 @@ const BarcodeScanner = forwardRef<
 
       console.log("[BarcodeScanner] Initializing camera…");
 
-      // 1) ZXing hints
+      // 1) ZXing 디코딩 힌트 설정
       const hints = new Map<DecodeHintType, any>();
       hints.set(DecodeHintType.POSSIBLE_FORMATS, [
         BarcodeFormat.EAN_13,
@@ -116,7 +121,7 @@ const BarcodeScanner = forwardRef<
       const codeReader = new BrowserMultiFormatReader(hints);
       codeReaderRef.current = codeReader;
 
-      // 2) Zoom initialization once stream is live
+      // 2) 줌 초기화 (스트림이 시작된 후 호출)
       const initZoom = () => {
         const stream = videoRef.current!.srcObject as MediaStream | null;
         if (!stream) return;
@@ -134,18 +139,18 @@ const BarcodeScanner = forwardRef<
           setZoomCaps({ min, max, step });
           setZoomValue(min);
 
-          // Initially set hardware zoom to min
+          // 초기 하드웨어 줌 값 설정
           ;(track as any)
             .applyConstraints({ advanced: [{ zoom: min }] })
             .catch(() => {
-              /* ignore if it fails */
+              /* 무시 */
             });
         } else {
           setZoomSupported(false);
         }
       };
 
-      // 3) Invoke ZXing reader with constraints
+      // 3) 카메라를 제약조건과 함께 시작
       const startScannerWithConstraints = (
         facingMode: "environment" | "user"
       ) => {
@@ -174,7 +179,7 @@ const BarcodeScanner = forwardRef<
               );
               onDetected(text, points);
 
-              // Stop scanner once detected
+              // 바코드 인식되면 자동 중지
               if (controlsRef.current) {
                 try {
                   controlsRef.current.stop();
@@ -200,7 +205,7 @@ const BarcodeScanner = forwardRef<
         );
       };
 
-      // 4) Try back → front if allowed
+      // 4) 후면→전면 순으로 카메라 시도
       if (fallbackToFrontCameraForTest) {
         startScannerWithConstraints("environment")
           .then((controls) => {
@@ -249,7 +254,7 @@ const BarcodeScanner = forwardRef<
           });
       }
 
-      // 5) Cleanup on unmount
+      // 5) 언마운트 시 정리
       return () => {
         console.log(
           "[BarcodeScanner] Unmounting → cleaning up"
@@ -277,7 +282,7 @@ const BarcodeScanner = forwardRef<
       };
     }, [fallbackToFrontCameraForTest, onDetected, onError]);
 
-    /** Debounced setter for hardware zoom → applyConstraints */
+    /** 디바운스 후 하드웨어 줌 적용 */
     const applyHardwareZoom = useCallback(
       (newZoom: number) => {
         if (!videoRef.current) return;
@@ -300,23 +305,22 @@ const BarcodeScanner = forwardRef<
       []
     );
 
-    /** Called on slider change */
+    /** 슬라이더 변경 시 호출 */
     const onZoomSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const newZoom = parseFloat(e.currentTarget.value);
       setZoomValue(newZoom);
 
-      // Clear any pending timeout
+      // 디바운스: 100ms 후에 하드웨어 줌 적용
       if (zoomTimeoutRef.current != null) {
         window.clearTimeout(zoomTimeoutRef.current);
       }
-      // Debounce hardware zoom: only apply after 100ms of no further changes
       zoomTimeoutRef.current = window.setTimeout(() => {
         applyHardwareZoom(newZoom);
         zoomTimeoutRef.current = null;
       }, 100);
     };
 
-    /** Toggle torch on/off */
+    /** 토치 토글 */
     const toggleTorch = () => {
       if (!videoRef.current) return;
       const stream = videoRef.current.srcObject as
@@ -360,24 +364,30 @@ const BarcodeScanner = forwardRef<
           width: "100%",
           height: "100%",
           overflow: "hidden",
-          backgroundColor: "#000",
         }}
       >
-        {/* Video feed. We apply CSS scale for smooth zoom feedback. */}
+        {/* 1) 절대 위치로 가운데 Cropping, CSS scale 적용 */}
         <video
           ref={videoRef}
           style={{
-            width: "100%",
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+
+            /* 컨테이너 높이를 기준으로 최초 가득 채우고, 넘치는 가로 부분을 자름 */
+            width: "auto",
             height: "100%",
             objectFit: "cover",
-            transform: `scale(${zoomValue})`,
+
+            /* 중앙 정렬 후 scale 적용 */
+            transform: `translate(-50%, -50%) scale(${zoomValue})`,
             transition: "transform 0.15s ease-out",
           }}
           muted
           playsInline
         />
 
-        {/* Torch toggle button (top-right) */}
+        {/* 2) 토치 토글 버튼 (우측 상단) */}
         <button
           onClick={toggleTorch}
           style={{
@@ -397,17 +407,18 @@ const BarcodeScanner = forwardRef<
           {torchOn ? "🔦 Off" : "🔦 On"}
         </button>
 
-        {/* Zoom slider, only if supported */}
+        {/* 3) 줌 슬라이더: 아래에서 좀 더 띄우고 위/아래 padding */}
         {zoomSupported && (
           <div
             style={{
               position: "absolute",
-              bottom: "16px",
+              bottom: "32px",      /* 바닥에서 충분히 띄움 */
               left: "50%",
               transform: "translateX(-50%)",
-              width: "90%",            // Make slider span 90% of container
-              padding: "0 12px",       // Add horizontal padding
+              width: "90%",
               zIndex: 999,
+
+              padding: "8px 0",    /* 위/아래 마진을 줘서 노란 테두리와 간격 확보 */
             }}
           >
             <input
@@ -419,23 +430,20 @@ const BarcodeScanner = forwardRef<
               onChange={onZoomSliderChange}
               style={{
                 width: "100%",
-                // Bump up the thumb hit area via pseudo‐styles:
                 WebkitAppearance: "none",
                 height: "8px",
                 borderRadius: "4px",
                 background: "rgba(255,255,255,0.3)",
                 outline: "none",
+
+                /* 슬라이더 thumb 영역을 살짝 늘리고 싶다면 padding 추가 가능 */
+                padding: "4px 0",
               }}
             />
-            {/* 
-              Note: You can optionally add CSS for the ::-webkit-slider-thumb 
-              to increase its size and clickable area. For brevity, I'm relying 
-              on the extra padding around the input container. 
-            */}
           </div>
         )}
 
-        {/* Scan‐area overlays */}
+        {/* 4) 스캔 영역 오버레이 */}
         <div className="scan-overlay-top" />
         <div className="scan-overlay-bottom" />
         <div className="scan-overlay-left" />
