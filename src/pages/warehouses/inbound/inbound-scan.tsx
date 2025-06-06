@@ -1,7 +1,7 @@
 // src/pages/warehouses/inbound-scan.tsx
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, Navigate, Link } from "react-router-dom";
+import { useParams, Navigate, useNavigate, Link } from "react-router-dom";
 import Papa from "papaparse";
 import {
   WAREHOUSES,
@@ -25,7 +25,8 @@ interface ProductRow {
 
 export default function InboundScan() {
   const { whId, sId } = useParams<"whId" | "sId">();
-  console.log("InboundScan 렌더링 시작"); 
+  const navigate = useNavigate();
+  console.log("InboundScan 렌더링 시작");
   console.log("whId:", whId, "sId:", sId);
 
   // 1) 구글 시트에서 로드된 상품 데이터
@@ -81,21 +82,21 @@ export default function InboundScan() {
       if (pauseRef.current) return;
       // 7-2) 시트 로딩 중이거나 데이터가 없으면 무시
       if (loadingSheet || googleProducts.length === 0) return;
-  
+
       // ① 스캐너가 넘겨준 문자열에서 앞뒤 공백 제거
       const rawScanned = barcodeText.trim();
       // ② 숫자 외 모든 문자(공백, 특수문자) 제거
       const cleanScanned = rawScanned.replace(/[^\d]/g, "");
       console.log("   ► cleanScanned =", cleanScanned);
 
-      // ③ 중복 스캔 검사: (기존 scannedItems 대신 ref 기반 Set으로 관리할 수도 있지만, 이 예시에서는 생략)
+      // ③ 중복 스캔 검사
       if (scannedItems.find((it) => it.barcode === cleanScanned)) {
         alert(`이미 추가된 바코드입니다: ${cleanScanned}`);
         scannerRef.current?.stop();
         setShowScanner(false);
         return;
       }
-  
+
       // ④ 구글 시트 데이터에서 매칭 (셀 데이터에도 클린업 적용)
       const found = googleProducts.find((prod) => {
         const rawProd = (prod.바코드 ?? "").trim();
@@ -108,26 +109,24 @@ export default function InboundScan() {
         setShowScanner(false);
         return;
       }
-  
-      // ⑤ found 가 있으면, 클린업된 cleanScanned 또는 rawProd 둘 중 하나를 선택해 newItem.barcode에 넣어도 무방
+
+      // ⑤ found가 있으면 새로운 ScannedItem 생성 후 리스트에 추가
       const warehouseLabel =
         WAREHOUSES.find((w) => w.id === whId)?.label ?? whId ?? "";
-  
+
       const newItem: ScannedItem = {
         id: (found.ID ?? "").trim(),
         name: (found.상품명 ?? "").trim(),
-        // → stock, size, category, source, dest 등 그대로 사용
         stock: (found.현재고 ?? "").trim(),
         size: (found.규격 ?? "").trim(),
-        // barcode: cleanScanned // 또는 rawProd.replace(/[^\d]/g, "") 
         barcode: cleanScanned,
         category: (found.카테고리 ?? "").trim(),
         source: sourceLabel,
         dest: warehouseLabel,
       };
-  
+
       setScannedItems((prev) => [newItem, ...prev]);
-  
+
       // ⑥ 신규 아이템 스캔 시 스캐너 닫기
       scannerRef.current?.stop();
       setShowScanner(false);
@@ -139,9 +138,18 @@ export default function InboundScan() {
     console.error("[InboundScan] 스캔 에러:", err);
   }, []);
 
-  // 8) 삭제 버튼 클릭 시
+  // 8) 실제 삭제 로직 (state에서 제거)
   const handleRemove = (idToRemove: string) => {
     setScannedItems((prev) => removeScannedItemById(prev, idToRemove));
+  };
+
+  // 삭제 전 확인창을 띄우는 함수
+  const confirmRemove = (idToRemove: string, itemName: string) => {
+    const message = 
+      `'${itemName}'\n해당 물품이 목록에서 제거됩니다.\n계속하시겠습니까?`;
+    if (window.confirm(message)) {
+      handleRemove(idToRemove);
+    }
   };
 
   // ─── 잘못된 whId 처리 ─────────────────────────────────────────────────────
@@ -154,22 +162,39 @@ export default function InboundScan() {
   // 9) 스캔 열기/닫기 토글 핸들러
   const toggleScanner = () => {
     if (showScanner) {
-      if (scannerRef.current) {
-        scannerRef.current.stop();
-      }
+      scannerRef.current?.stop();
       setShowScanner(false);
     } else {
       setShowScanner(true);
     }
   };
+
+  // “← 출발지 목록” 클릭 시, scannedItems에 항목이 있을 때만 확인창 띄우고,
+  // 없으면 바로 navigate
+  const handleBackClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+
+    if (scannedItems.length > 0) {
+      // 스캔된 항목이 하나라도 있을 때만 확인창
+      const message =
+        "현재까지 스캔한 정보가 저장되지 않았습니다.\n" +
+        "이 페이지를 벗어나면 스캔한 물품이 모두 삭제됩니다.\n" +
+        "그래도 나가시겠습니까?";
+      if (window.confirm(message)) {
+        navigate(`/warehouses/${whId}/inbound`);
+      }
+    } else {
+      // 스캔된 항목이 없으면 바로 뒤로 이동
+      navigate(`/warehouses/${whId}/inbound`);
+    }
+  };
+
   console.log("InboundScan 렌더링 직전");
   return (
     <div className="inbound-scan">
       {/* — Header — */}
       <header className="warehouse__header">
-        <h1 className="warehouse__title">
-          {warehouse.label} / 입고 스캔
-        </h1>
+        <h1 className="warehouse__title">{warehouse.label} / 입고 스캔</h1>
         <Link to="/warehouses" className="warehouse__restart-btn">
           앱 재시작
         </Link>
@@ -252,11 +277,12 @@ export default function InboundScan() {
             ) : (
               scannedItems.map((item, idx) => (
                 <div key={`${item.id}-${idx}`} className="inbound-scan__row">
-                  {/* 휴지통 아이콘 */}
+                  {/* 휴지통 아이콘 -> confirmRemove 호출 */}
                   <div className="inbound-scan__cell inbound-scan__cell--icon">
                     <span
                       className="inbound-scan__icon"
-                      onClick={() => handleRemove(item.id)}
+                      onClick={() => confirmRemove(item.id, item.name)}
+                      style={{ cursor: "pointer" }}
                     >
                       🗑️
                     </span>
@@ -302,9 +328,14 @@ export default function InboundScan() {
 
       {/* — Footer — */}
       <footer className="warehouse__footer">
-        <Link to={`/warehouses/${whId}/inbound`} className="warehouse__back-btn">
+        {/* 수정된 “← 출발지 목록” 버튼 */}
+        <button
+          onClick={handleBackClick}
+          className="warehouse__back-btn"
+        >
           ← 출발지 목록
-        </Link>
+        </button>
+
         <Link
           to={`/warehouses/${whId}/inbound/${sId}/info`}
           className="warehouse__next-btn"
@@ -312,7 +343,6 @@ export default function InboundScan() {
         >
           입고 정보 입력 →
         </Link>
-        
       </footer>
     </div>
   );

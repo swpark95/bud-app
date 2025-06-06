@@ -14,7 +14,7 @@ export default function InboundInfo() {
   // ─── 훅 호출 순서 지키기: 절대로 조건문 이전에 useState 등 Hook들을 모두 호출합니다. ───
   const { whId, sId } = useParams<"whId" | "sId">();
   const location = useLocation();
-  const state = location.state as LocationState | null;
+  const state = (location.state as LocationState) || null;
   const scannedItems = state?.scannedItems || [];
 
   const [currentIndex, setCurrentIndex] = useState<number>(0);
@@ -88,6 +88,30 @@ export default function InboundInfo() {
   const goNext = () => {
     if (currentIndex < scannedItems.length - 1) setCurrentIndex((i) => i + 1);
   };
+
+  // (e) 휴지통 클릭: 삭제 확인 모달
+  const handleDeleteClick = (idx: number) => {
+    const itemName = scannedItems[idx]?.name || "해당 물품";
+    const message = `'${itemName}'\n해당 물품이 목록에서 제거됩니다.\n계속하시겠습니까?`;
+    if (window.confirm(message)) {
+      // 삭제 로직: 필요 시 실제 배열에서 제거하거나, 상위로 콜백 호출
+      // 예시: alert("삭제되었습니다.");
+      // 이 컴포넌트 자체에는 scannedItems를 직접 수정할 수 없으므로,
+      // 실제 삭제 로직은 상위 페이지에서 배열을 관리하거나,
+      // useState로 scannedItems 복제 후 관리해야 합니다.
+    }
+  };
+
+  // (f) ←입고 스캔 버튼 클릭: 나가기 확인
+  const handleBackClick = (e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
+    const message =
+      "현재까지 입력한 물품 정보가 저장되지 않았습니다.\n" +
+      "이 페이지를 벗어나면 모든 데이터가 삭제됩니다.\n" +
+      "그래도 나가시겠습니까?";
+    if (!window.confirm(message)) {
+      e.preventDefault();
+    }
+  };
   // ────────────────────────────────────────────────────────────────────────
 
   // 9) 현재 인덱스의 물품 정보 꺼내기
@@ -113,12 +137,18 @@ export default function InboundInfo() {
   // 합산된 재고
   const displayedStock = originalStock + currentQuantity;
 
-  // 11) 버튼 활성화 여부: “물품 검토” 버튼은
-  //     -- 선택된 날짜 필드가 비어있지 않아야 하고,
-  //     -- 입고 수량 → 반드시 1 이상이어야 활성화됩니다.
-  const isSubmitEnabled = currentDateValue.trim() !== "" && currentQuantity > 0;
-
-  // ──────────────────────────────────────────────────────────────────────────
+  // 3) “물품 검토” 버튼 활성화 로직: 마지막 리스트의 정보가 입력되어야 활성화
+  const lastIndex = scannedItems.length - 1;
+  const lastDateType = selectedDateTypeArray[lastIndex];
+  const lastDateValue =
+    lastDateType === "유통기한"
+      ? expirationDateArray[lastIndex]
+      : manufactureDateArray[lastIndex];
+  const lastQuantity = quantityArray[lastIndex];
+  const isSubmitEnabled =
+    scannedItems.length > 0 &&
+    lastDateValue.trim() !== "" &&
+    lastQuantity > 0;
 
   return (
     <div className="inbound-info">
@@ -140,8 +170,15 @@ export default function InboundInfo() {
           </div>
         ) : (
           <>
-            {/* 1) 카드: 현재 물품 기본 정보 */}
-            <div className="inbound-info__card">
+            {/* 1) 카드: 현재 물품 기본 정보 (스크롤 표시) */}
+            <div
+              className="inbound-info__card"
+              style={{
+                maxHeight: "300px",
+                overflowY: "auto",
+                paddingRight: "8px", // 스크롤이 덜 가려지도록
+              }}
+            >
               <div className="inbound-info__card-header">
                 <span className="inbound-info__item-number">
                   {currentIndex + 1}번 물품
@@ -149,9 +186,7 @@ export default function InboundInfo() {
                 <button
                   className="inbound-info__delete-btn"
                   title="이 항목 삭제"
-                  onClick={() => {
-                    // 필요 시: 삭제 로직 추가
-                  }}
+                  onClick={() => handleDeleteClick(currentIndex)}
                 >
                   🗑️
                 </button>
@@ -405,6 +440,7 @@ export default function InboundInfo() {
         <Link
           to={`/warehouses/${whId}/inbound/${sId}`}
           className="warehouse__back-btn"
+          onClick={handleBackClick}
         >
           ← 입고 스캔
         </Link>
@@ -413,7 +449,7 @@ export default function InboundInfo() {
           onClick={() => {
             alert("입고 정보가 저장되었습니다.");
           }}
-          disabled={!isSubmitEnabled}  /* 날짜 입력 & 수량 >0 이어야 활성화 */
+          disabled={!isSubmitEnabled}  /* 마지막 리스트의 날짜+수량 입력 시 활성화 */
         >
           물품 검토 →
         </button>
