@@ -172,58 +172,29 @@ body {
 
 .scan-border {
   position: absolute;
-  top: 17.5%;          /* (100 - 45) / 2 = 27.5% */
+  top: 17.5%;
   left: 10%;
   width: 80%;
-  height: 65%;         /*  기존 30% → 45% (1.5배 증가) */
+  height: 65%;         /* Was 45%, now 65% → 1.5× taller */
   border: 2px solid yellow;
   box-sizing: border-box;
   pointer-events: none;
 }
-
-
-/* ────── 4. 오버레이 4개 ────── */
-/* ① 위쪽 오버레이: 노란 사각형 위(27.5%)만큼 덮음 */
 .scan-overlay-top {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 17.5%;
-  background-color: rgba(0, 0, 0, 0.5);
-  pointer-events: none;
+  position: absolute; top: 0; left: 0; width: 100%; height: 17.5%;
+  background-color: rgba(0,0,0,0.5); pointer-events: none;
 }
-/* ② 아래쪽 오버레이: 노란 사각형 아래(27.5%) */
 .scan-overlay-bottom {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 17.5%;
-  background-color: rgba(0, 0, 0, 0.5);
-  pointer-events: none;
+  position: absolute; bottom: 0; left: 0; width: 100%; height: 17.5%;
+  background-color: rgba(0,0,0,0.5); pointer-events: none;
 }
-
-/* ③ 왼쪽 오버레이: 노란 사각형 좌우 영역 중 왼쪽 10% 너비, 세로는 45% */
 .scan-overlay-left {
-  position: absolute;
-  top: 17.5%;
-  left: 0;
-  width: 10%;
-  height: 65%;
-  background-color: rgba(0, 0, 0, 0.5);
-  pointer-events: none;
+  position: absolute; top: 17.5%; left: 0; width: 10%; height: 65%;
+  background-color: rgba(0,0,0,0.5); pointer-events: none;
 }
-
-/* ④ 오른쪽 오버레이: 노란 사각형 우측 10% */
 .scan-overlay-right {
-  position: absolute;
-  top: 17.5%;
-  right: 0;
-  width: 10%;
-  height: 65%;
-  background-color: rgba(0, 0, 0, 0.5);
-  pointer-events: none;
+  position: absolute; top: 17.5%; right: 0; width: 10%; height: 65%;
+  background-color: rgba(0,0,0,0.5); pointer-events: none;
 }
 
 
