@@ -219,7 +219,7 @@ export default function InboundResult() {
             const form = document.createElement("form");
             form.method = "POST";
             form.action =
-              "https://script.google.com/macros/s/AKfycbyLKfdSjWQvxTAAT1ZUTdqS4A21h4Mc8Q0Cexe_T4ZwNFIjCjH1-SYxXWHgpiDmSnh3gw/exec"; // 배포된 URL
+              "https://script.google.com/macros/s/AKfycbw59zmMpPH0fDr7-Nn5ptkDGqd4Dc5llY6HD921ahQc9uSNwOBDDRAO-n73kjYFcQB30Q/exec"; // 배포된 URL
             form.target = "hidden_iframe";
 
             // 3) payload input 추가
