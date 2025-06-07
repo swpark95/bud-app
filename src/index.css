@@ -1,18 +1,20 @@
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   margin: 0;
   padding: 0;
   height: 100%;
@@ -24,10 +26,10 @@ body {
   color: #000;
 }
 
-.home{
+.home {
   background-color: #000;
   color: #fff;
-  display:flex;
+  display: flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
@@ -50,7 +52,7 @@ body {
   width: 90%;
   max-width: 360px;
   height: 56px;
-  background-color: #2F8537;
+  background-color: #2f8537;
   color: #fff;
   text-decoration: none;
   font-size: 18px;
@@ -59,7 +61,10 @@ body {
   margin-bottom: 20px;
 }
 
-.warehouse, .warehouse-detail, .inbound, .outbound {
+.warehouse,
+.warehouse-detail,
+.inbound,
+.outbound {
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -94,7 +99,10 @@ body {
 }
 
 /* — Element: list — */
-.warehouse__list, .warehouse-detail__list, .inbound__list, .outbound__list {
+.warehouse__list,
+.warehouse-detail__list,
+.inbound__list,
+.outbound__list {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -103,7 +111,10 @@ body {
   box-sizing: border-box;
 }
 
-.warehouse__item, .warehouse-detail__item, .inbound__item, .outbound__item {
+.warehouse__item,
+.warehouse-detail__item,
+.inbound__item,
+.outbound__item {
   flex: 1;
   background-color: #377fd3;
   border-radius: 8px;
@@ -115,7 +126,8 @@ body {
   text-decoration: none;
 }
 
-.inbound-scan {
+.inbound-scan,
+.inbound-result {
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -124,20 +136,18 @@ body {
   box-sizing: border-box;
 }
 
-.inbound-scan__content {
-  /* Header가 차지한 높이를 제외한 나머지 전체 공간을 차지 */
-  flex: 1;
+.inbound-scan__content,
+.inbound-result__content {
   display: flex;
   flex-direction: column;
+  flex: 1;
   padding: 16px;
   box-sizing: border-box;
-
-  /* 화면 전체에 스크롤을 걸지 않기 위해 overflow를 제거 */
   overflow: hidden;
+  background-color: #f2f2f2;
 }
 
 /* 3.1) 카메라 영역: 고정 높이 */
-
 .inbound-scan__camera {
   position: relative;
   width: 100%;
@@ -162,54 +172,75 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: auto; 
+  width: auto;
   height: 200px; /* 부모가 300px인데, 비디오 높이를 좀 더 크게 잡는다. */
   min-width: 700px; /* 필요에 따라 가로로도 여유를 준다. */
   transform: translate(-50%, -50%);
-  object-fit: cover; 
+  object-fit: cover;
 }
-
 
 .scan-border {
   position: absolute;
   top: 17.5%;
   left: 10%;
   width: 80%;
-  height: 65%;         /* Was 45%, now 65% → 1.5× taller */
+  height: 65%; /* Was 45%, now 65% → 1.5× taller */
   border: 2px solid yellow;
   box-sizing: border-box;
   pointer-events: none;
 }
 .scan-overlay-top {
-  position: absolute; top: 0; left: 0; width: 100%; height: 17.5%;
-  background-color: rgba(0,0,0,0.5); pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 17.5%;
+  background-color: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
 }
 .scan-overlay-bottom {
-  position: absolute; bottom: 0; left: 0; width: 100%; height: 17.5%;
-  background-color: rgba(0,0,0,0.5); pointer-events: none;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 17.5%;
+  background-color: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
 }
 .scan-overlay-left {
-  position: absolute; top: 17.5%; left: 0; width: 10%; height: 65%;
-  background-color: rgba(0,0,0,0.5); pointer-events: none;
+  position: absolute;
+  top: 17.5%;
+  left: 0;
+  width: 10%;
+  height: 65%;
+  background-color: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
 }
 .scan-overlay-right {
-  position: absolute; top: 17.5%; right: 0; width: 10%; height: 65%;
-  background-color: rgba(0,0,0,0.5); pointer-events: none;
+  position: absolute;
+  top: 17.5%;
+  right: 0;
+  width: 10%;
+  height: 65%;
+  background-color: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
 }
 
-
 /* 3.2) 스캔된 항목 카드: 화면 아래 남은 공간을 모두 차지 */
-.inbound-scan__scanned {
-  background-color: #fff;
-  border-radius: 8px;
-  flex: 1;              /* 카메라 아래 공간 전부 차지 */
+.inbound-scan__scanned,
+.inbound-result__scanned {
+  position: relative; /* 빈 메시지를 이 기준으로 절대 위치 잡기 */
+  flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;     /* 내부 스크롤은 아래 바디에서 처리 */
+  background-color: #fff;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 /* 4) 스캔된 항목 카드 내부 - 헤더 */
-.inbound-scan__scanned-header {
+.inbound-scan__scanned-header,
+.inbound-result__scanned-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -219,7 +250,8 @@ body {
   z-index: 2;
 }
 
-.inbound-scan__scanned-title {
+.inbound-scan__scanned-title,
+.inbound-result__scanned-title {
   font-size: 16px;
   font-weight: 600;
   color: #333;
@@ -231,151 +263,159 @@ body {
   text-decoration: none;
 }
 
-/* └ 테이블 헤더 행 */
-.inbound-scan__table-header {
-  display: grid;
-  /* 컬럼 너비: 번호(50px) / 물품이름(120px) / 나머지 100px씩 */
-  grid-template-columns:
-    40px  /* 번호(아이콘 포함) */
-    50px   /* 번호(아이콘 포함) */
-    120px  /* 물품이름 */
-    100px  /* 현재고 */
-    100px  /* 규격 */
-    150px  /* 바코드(길어서 넉넉히) */
-    120px  /* 상품분류 */
-    120px  /* 출발지 */
-    120px; /* 도착지 */
-  padding: 8px 0;
-  border-bottom: 1px solid #ddd;
+/* └ 테이블 래퍼: flex 레이아웃 + 가로/세로 스크롤 */
+.inbound-scan__table-wrapper,
+.inbound-result__table-wrapper {
+  overflow: auto; /* 가로·세로 스크롤 허용 */
+  flex: 1; /* 남은 높이 채우기 */
+  border: 1px solid #eee;
   background-color: #fff;
-  color: #333;
-  font-size: 14px;
-  font-weight: 600;
-
-  /* 스크롤 시 상단에 고정 */
-  position: sticky;
-  top: 0;
-  z-index: 3;
 }
 
-.inbound-scan__column {
-  text-align: center;
-  white-space: nowrap;
-  padding: 0 8px;
+/* ── 테이블 (헤더 + 로우) ───────────────────────────────────────── */
+.inbound-scan__table {
+  min-width: 900px; /* 기존 고정 너비 그대로 */
+}
+.inbound-result__table {
+  min-width: 1080px; /* 기존 고정 너비 그대로 */
 }
 
-/* 첫 번째(아이콘), 두 번째(번호), 세 번째(물품이름) 컬럼만 sticky */
-.inbound-scan__column--icon {
-  position: sticky;
-  left: 0;
-  background-color: #fff;
-  z-index: 4;
-}
-
-
-/* 2) 헤더의 첫 두 컬럼(번호, 물품이름) 고정 */
-.inbound-scan__column--no {
-  /* 첫 번째 컬럼(번호) 고정 */
-  position: sticky;
-  left: 0;
-  background-color: #fff;
-  z-index: 4;
-}
-
-.inbound-scan__column--name {
-  /* 두 번째 컬럼(물품이름) 고정 */
-  position: sticky;
-  left: 50px; /* 왼쪽에서 첫 번째 컬럼(50px)만큼 떨어진 위치 */
-  background-color: #fff;
-  z-index: 4;
-}
-
-/* 6) 바디: 스캔된 항목 리스트를 담는 영역 (세로 스크롤) */
-.inbound-scan__table-body {
-  flex: 1;                /* 헤더 아래 남은 공간 모두 사용 */
-  overflow-y: auto;       /* 내부에서만 세로 스크롤 */
-}
-
-/* 스캔된 항목 한 줄(row) */
+/* header와 row는 동일한 그리드 정의 */
+.inbound-scan__table-header,
 .inbound-scan__row {
   display: grid;
-  /* 헤더와 동일한 grid-template-columns를 사용해야 컬럼 정렬이 일치 */
   grid-template-columns:
-    40px  /* 번호(아이콘 포함) */
-    50px  /* 물품이름 */
-    120px
-    100px
-    100px
-    150px
-    120px
-    120px
-    120px;
-  padding: 8px 0;
-  border-bottom: 1px solid #eee;
-  background-color: #fff;
-  align-items: center;
-}
-
-/* — 각 셀(Cell) 공통 스타일 — */
-.inbound-scan__cell {
-  padding: 0 8px;
+    40px /* icon */
+    50px /* no */
+    80px /* name */
+    100px /* stock */
+    100px /* size */
+    150px /* barcode */
+    120px /* category */
+    120px /* source */
+    120px; /* dest */
+  align-items: stretch; /* 행 높이를 동일하게 */
   font-size: 14px;
-  color: #333;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  border-bottom: 1px solid #eee;
 }
 
-/* 바디에서 첫 세 셀(아이콘·번호·물품이름) sticky */
+.inbound-result__table-header,
+.inbound-result__row {
+  display: grid;
+  grid-template-columns:
+    50px /* 번호 */
+    80px /* 제품명 */
+    100px /* 현재고 */
+    120px /* 유통기한 */
+    120px /* 제조일자 */
+    100px /* 규격 */
+    150px /* 바코드 */
+    120px /* 상품분류 */
+    120px /* 출발지 */
+    120px; /* 도착지 */
+  align-items: stretch; /* 행 높이를 동일하게 */
+  font-size: 14px;
+  border-bottom: 1px solid #eee;
+}
+
+/* ── 빈 상태 메시지: 절대위치로 카드 중앙에 고정 ─────────────── */
+.inbound-scan__empty-message-wrapper {
+  position: absolute;
+  top: 50%; /* 카드 높이 절반 지점 */
+  left: 50%; /* 카드 너비 절반 지점 */
+  transform: translate(-50%, -50%);
+  pointer-events: none; /* 스크롤·클릭 방해 안 함 */
+}
+
+.inbound-scan__empty-message {
+  padding: 8px 16px;
+  font-size: 16px;
+  color: #666;
+  background: rgba(255, 255, 255, 0.8); /* 읽기 좋게 반투명 배경(선택) */
+  border-radius: 4px;
+  text-align: center;
+}
+/* 공통 셀 스타일 */
+.inbound-scan__column,
+.inbound-scan__cell,
+.inbound-result__column,
+.inbound-result__cell {
+  display: flex; /* Flexbox 켜기 */
+  align-items: center; /* 수직 가운데 정렬 */
+  padding: 8px;
+  white-space: normal; /* 여러 줄 허용 */
+  overflow-wrap: break-word; /* 긴 단어도 줄바꿈 */
+  word-break: keep-all; /* 한글 단어를 깨지 않고 줄바꿈 (필요시 break-all) */
+  background-color: #fff;
+}
+
+.inbound-scan__column--icon,
 .inbound-scan__cell--icon {
   position: sticky;
-  left: 0;
-  background-color: #fff;
-  z-index: 2;
+  left: 0; /* 테이블 왼쪽 끝에 고정 */
+  z-index: 10; /* 번호 열(z-index:9) 위에 쌓이도록 설정 */
+  background-color: #fff; /* 뒤 내용이 비치지 않도록 배경 지정 */
+  text-align: center; /* 아이콘 가운데 정렬 */
 }
 
-/* 3) 바디의 첫 두 셀(번호, 물품이름) 고정 */
+.inbound-scan__column--no,
 .inbound-scan__cell--no {
   position: sticky;
-  left: 0;
+  left: 40px;
+  z-index: 9;
   background-color: #fff;
-  z-index: 2;
+  text-align: center;
 }
 
+.inbound-result__column--no,
+.inbound-result__cell--no {
+  padding: 8px;
+  position: sticky;
+  left: 0px;
+  z-index: 9;
+  background-color: #fff;
+  text-align: center;
+}
+
+/* 물품명 열 sticky */
+.inbound-scan__column--name,
 .inbound-scan__cell--name {
   position: sticky;
-  left: 50px;
+  left: 90px;
+  z-index: 8;
   background-color: #fff;
-  z-index: 2;
+  text-align: left;
+  border-right: solid 1px #eee;
 }
 
-/* 4) 휴지통 아이콘(삭제 버튼) 스타일 */
-.inbound-scan__icon {
-  font-size: 16px;
-  color: #c00; /* 빨간색 또는 취향에 맞춰 조정 */
-  cursor: pointer;
+.inbound-result__column--name,
+.inbound-result__cell--name {
+  padding: 8px;
+  position: sticky;
+  left: 50px;
+  z-index: 8;
+  background-color: #fff;
+  text-align: left;
+  border-right: solid 1px #eee;
 }
 
 .inbound-info {
   height: 100vh;
-  display: flex;           /* 필요에 따라 flex-container여도 되고 아니어도 됩니다 */
-  flex-direction: column; 
+  display: flex;
+  flex-direction: column;
   margin: 0;
   box-sizing: border-box;
 }
 
 /* — 본문 콘텐츠 영역 — */
 .inbound-info__content {
-  display: flex;            /* ① flex 컨테이너로 만든다 */
-  flex-direction: column;   /*    세로축 방향으로 쌓인다 */
-  flex: 1;                  /*    부모(.inbound-info)의 남은 높이를 전부 차지 */
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   padding: 16px;
-  background-color: #D8D8D8;
+  background-color: #f2f2f2;
   box-sizing: border-box;
-  overflow: hidden;         /* (스크롤 처리는 카드 영역에서만) */
+  overflow-y: auto; /* internal vertical scrolling */
 }
 
 .inbound-info__empty {
@@ -387,15 +427,13 @@ body {
 
 /* ─── 스캔된 물품 카드 ─────────────────────────────────────────────────── */
 .inbound-info__card {
-  flex: none;                /* flex-grow:0, flex-shrink:0 상태로 고정 */
-  /* (부모 높이의 45% 정도만 차지하도록 예시) */
-  height: 45vh;              
+  flex: 1; /* expand to fill available content space */
+  min-height: 0; /* important: allow it to shrink below its contents */
+  overflow-y: auto; /* scroll only this section if it’s too tall */
   margin-bottom: 16px;
-  overflow-y: auto;          /* 내부에 컨텐츠가 넘칠 때만 스크롤바 표시 */
-  background-color: #fff;
-  border-radius: 8px;
   padding: 16px;
-  box-sizing: border-box;
+  background: #fff;
+  border-radius: 8px;
 }
 
 .inbound-info__card-header {
@@ -424,7 +462,6 @@ body {
   align-self: flex-start;
   margin-right: 8px;
   margin-bottom: 24px;
-  
 }
 
 .inbound-info__field-label {
@@ -440,13 +477,13 @@ body {
   font-weight: bold;
   color: #333;
   white-space: normal;
-  word-break: break-word; /* 가능한 위치에서 단어 단위로 끊기 */
-  overflow-wrap: break-word; /* 긴 단어가 영역을 넘을 때 자동 줄바꿈 */
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 /* ─── “유통기한” 값이 있을 경우 초록색으로 표시 ───────────────────────── */
 .inbound-info__field-value--expiration {
-  color: #2E7D32; /* 초록 계열 */
+  color: #2e7d32; /* 초록 계열 */
 }
 
 /* ─── “(+입고수량)” 텍스트 ───────────────────────────────────────────── */
@@ -454,7 +491,7 @@ body {
   margin-left: 4px;
   font-size: 20px;
   font-weight: 600;
-  color: #2E7D32;
+  color: #2e7d32;
 }
 
 /* ─── 날짜 입력 섹션 ─────────────────────────────────────────────────── */
@@ -507,20 +544,20 @@ body {
   border-radius: 4px;
   background-color: #fff;
   color: #333;
-  appearance: none; /* 기본 화살표 숨기거나 xx 필요 시 커스터마이징 */
+  appearance: none; /* 기본 화살표 숨기거나 커스터마이징 가능 */
 }
 
 /* 년/월/일 각각 조금씩 폭 조정 */
 .inbound-info__select--year {
-   flex: 2;     /* 비율 2 : 월 비율 1 : 일 비율 1 */
+  flex: 2;
   min-width: 0;
 }
 .inbound-info__select--month {
-    flex: 1;
+  flex: 1;
   min-width: 0;
 }
 .inbound-info__select--day {
-    flex: 1;
+  flex: 1;
   min-width: 0;
 }
 
@@ -532,7 +569,6 @@ body {
   cursor: pointer;
   margin-left: 4px;
 }
-
 
 /* ─── 수량 입력 섹션 ─────────────────────────────────────────────────── */
 .inbound-info__quantity-section {
@@ -557,16 +593,16 @@ body {
 }
 
 .inbound-info__quantity-btn {
-   flex: 1;
+  flex: 1;
   min-width: 0;
   height: 32px;
-  border: 1px solid #2E7D32;
+  border: 1px solid #2e7d32;
   border-radius: 4px;
   font-size: 20px;
   font-weight: 600;
   cursor: pointer;
   background-color: #fff;
-  color: #2E7D32;
+  color: #2e7d32;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -579,9 +615,9 @@ body {
 }
 
 .inbound-info__quantity-btn--plus {
-  background-color: #2E7D32;
+  background-color: #2e7d32;
   color: #fff;
-  border-color: #2E7D32;
+  border-color: #2e7d32;
 }
 
 .inbound-info__quantity-value {
@@ -631,8 +667,6 @@ body {
   color: #333;
 }
 
-
-
 /* Footer */
 .warehouse__footer {
   display: flex;
@@ -674,10 +708,124 @@ body {
   text-align: center;
   padding: 12px 0;
   font-size: 16px;
-  background-color: #E0E0E0;
-  border: 1px solid #E0E0E0;
-  color: #9E9E9E;
+  background-color: #e0e0e0;
+  border: 1px solid #e0e0e0;
+  color: #9e9e9e;
   border-radius: 8px;
   text-decoration: none;
   margin-left: 8px;
+}
+
+.warehouse__finish-btn {
+  flex: 1;
+  text-align: center;
+  padding: 12px 0;
+  font-size: 16px;
+  background-color: #2e7d32;
+  border: 1px solid #2e7d32;
+  color: #fff;
+  border-radius: 8px;
+  text-decoration: none;
+  margin-left: 8px;
+}
+/* ─── “(+입고수량)” 텍스트 (옵션) ─────────────────────────────── */
+.inbound-result__added-quantity {
+  margin-left: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2e7d32;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 40px;
+  z-index: 999;
+}
+
+.modal {
+  width: 100%;
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-close {
+  align-self: flex-end;
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #666;
+  cursor: pointer;
+}
+
+.modal h2 {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.modal input[type="text"] {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+}
+
+.no-results {
+  padding: 8px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.register-new {
+  background: none;
+  border: none;
+  color: #377fd3;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+.search-results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.search-results li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 16px;
+  color: #333;
+}
+
+.search-results li button {
+  background: none;
+  border: none;
+  color: #377fd3;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 15px;
 }

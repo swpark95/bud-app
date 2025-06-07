@@ -9,6 +9,7 @@ import Warehouse from "../pages/warehouses/warehouse";
 import Inbound from "../pages/warehouses/inbound/inbound";
 import InboundScan from "../pages/warehouses/inbound/inbound-scan";
 import InboundInfo from "../pages/warehouses/inbound/inbound-info";
+import InboundResult from "../pages/warehouses/inbound/inbound-result";
 
 import Outbound from "../pages/warehouses/outbound/outbound";
 
@@ -27,14 +28,13 @@ export default function Router() {
         <Route path="/warehouses/:whId" element={<Warehouse />} />
         <Route path="/warehouses/:whId/inbound" element={<Inbound />} />
         <Route path="/warehouses/:whId/inbound/:sId" element={<InboundScan />} />
+        <Route path="/warehouses/:whId/inbound/:sId/info" element={<InboundInfo />}/>
+        <Route path="/warehouses/:whId/inbound/:sId/info/result" element={<InboundResult />} />
         {/*
           HashRouter를 쓰면, “#/warehouses/:whId/inbound/:sId/info” 같은
           경로도 정상 매칭이 됩니다.
         */}
-        <Route
-          path="/warehouses/:whId/inbound/:sId/info"
-          element={<InboundInfo />}
-        />
+
         <Route path="/warehouses/:whId/outbound" element={<Outbound />} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/inventory/:sku" element={<InventoryDetail />} />
