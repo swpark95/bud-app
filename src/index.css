@@ -738,27 +738,94 @@ body {
 
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.3);
+  inset: 0; /* top:0; right:0; bottom:0; left:0 */
+  background-color: rgba(0, 0, 0, 0.4);
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding-top: 40px;
-  z-index: 999;
+  justify-content: center; /* 가로 중앙 */
+  align-items: flex-start; /* 세로 위쪽 */
+  box-sizing: border-box;
+  padding-top: 24px;
+  z-index: 1000;
 }
 
 .modal {
   width: 100%;
+  height: 100%; /* overlay padding-top 만큼 뺌 */
   background-color: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-sizing: border-box;
-  height: 100%;
+  border-radius: 8px 8px 0 0; /* 상단 둥글게, 하단은 직각 */
   display: flex;
   flex-direction: column;
+  padding: 0 16px;
+  overflow: hidden;
+}
+
+.modal__header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.modal__content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.modal__footer {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-top: 1px solid #e0e0e0;
+  background: #fff;
+}
+
+.modal__cancel-btn {
+  flex: 1;
+  text-align: center;
+  padding: 12px 0;
+  font-size: 16px;
+  background-color: #fff;
+  color: #377fd3;
+  border: 1px solid #377fd3;
+  border-radius: 8px;
+  text-decoration: none;
+  margin-right: 8px;
+}
+
+.modal__create-btn {
+  flex: 1;
+  text-align: center;
+  padding: 12px 0;
+  font-size: 16px;
+  background-color: #377fd3;
+  border: 1px solid #377fd3;
+  color: #fff;
+  border-radius: 8px;
+  text-decoration: none;
+  margin-left: 8px;
+}
+.modal__create-btn:disabled {
+  flex: 1;
+  text-align: center;
+  padding: 12px 0;
+  font-size: 16px;
+  background-color: #e0e0e0;
+  border: 1px solid #e0e0e0;
+  color: #9e9e9e;
+  border-radius: 8px;
+  text-decoration: none;
+  margin-left: 8px;
+}
+
+.modal__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
 }
 
 .modal-close {
@@ -770,13 +837,6 @@ body {
   cursor: pointer;
 }
 
-.modal h2 {
-  margin: 0 0 12px 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-}
-
 .modal input[type="text"] {
   width: 100%;
   padding: 10px 12px;
@@ -785,12 +845,6 @@ body {
   border-radius: 4px;
   margin-bottom: 16px;
   box-sizing: border-box;
-}
-
-.no-results {
-  padding: 8px 0;
-  color: #666;
-  font-size: 14px;
 }
 
 .register-new {
@@ -828,4 +882,39 @@ body {
   font-weight: 600;
   cursor: pointer;
   font-size: 15px;
+}
+
+/* 입력 그룹 */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+.size-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* ← 이 한 줄이 input 사이에 8px spacing을 줍니다 */
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  box-sizing: border-box; /* padding, border 포함해서 100% 너비 */
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  outline: none;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #666;
 }

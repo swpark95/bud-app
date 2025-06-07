@@ -194,14 +194,57 @@ export default function InboundResult() {
         >
           ← 입고 정보
         </Link>
+        {/* 완료 시 시트에 한꺼번에 POST + 페이지 이동 */}
         <button
           className="warehouse__finish-btn"
           onClick={() => {
+            // 1) ResultItem 배열을 payload로 직렬화
+            const payload = JSON.stringify(
+              scannedItems.map((item) => ({
+                id: item.id,
+                name: item.name,
+                stock: item.stock,
+                expirationDate: item.expirationDate,
+                manufactureDate: item.manufactureDate,
+                size: item.size,
+                barcode: item.barcode,
+                category: item.category,
+                source: item.source,
+                dest: warehouse.label,
+                quantity: item.quantity,
+              }))
+            );
+
+            // 2) 동적 form 생성
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action =
+              "https://script.google.com/macros/s/AKfycbyLKfdSjWQvxTAAT1ZUTdqS4A21h4Mc8Q0Cexe_T4ZwNFIjCjH1-SYxXWHgpiDmSnh3gw/exec"; // 배포된 URL
+            form.target = "hidden_iframe";
+
+            // 3) payload input 추가
+            const inp = document.createElement("input");
+            inp.type = "hidden";
+            inp.name = "payload";
+            inp.value = payload;
+            form.appendChild(inp);
+
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
+
+            // 4) 화면 전환
             navigate("/warehouses");
           }}
         >
           완료
         </button>
+        {/* 숨은 iframe: name은 form.target과 일치 */}
+        <iframe
+          name="hidden_iframe"
+          title="inbound-result-submission"
+          style={{ display: "none" }}
+        />
       </footer>
     </div>
   );

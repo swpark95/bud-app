@@ -54,3 +54,12 @@ export interface AddManualProps {
   sourceLabel: string;
   destLabel: string;
 }
+
+export interface CreateNewProps {
+  visible: boolean;
+  onClose: () => void;
+  onCreate: (item: ScannedItem) => void;
+  sourceLabel: string;
+  destLabel: string;
+  productCategories: string[];
+}

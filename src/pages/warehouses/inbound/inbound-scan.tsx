@@ -20,6 +20,7 @@ export default function InboundScan() {
 
   const [googleProducts, setGoogleProducts] = useState<ProductRow[]>([]);
   const [loadingSheet, setLoadingSheet] = useState<boolean>(true);
+  const [reloadKey, setReloadKey] = useState<number>(0);
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>(
     INITIAL_SCANNED_ITEMS
   );
@@ -38,11 +39,11 @@ export default function InboundScan() {
   const handleAddManual = useCallback((item: ScannedItem) => {
     setScannedItems((prev) => [item, ...prev]);
     setShowManual(false);
+    setReloadKey((k) => k + 1);
   }, []);
 
   useEffect(() => {
-    const csvUrl =
-      "https://docs.google.com/spreadsheets/d/e/2PACX-1vRLnytTHTeCyJyQTKSC82h7zji6PqCPmG2gz-0-gvYFeop-iEhvFXnwi-EOGHQJyVqhlIbneHLTUinL/pub?gid=0&single=true&output=csv";
+    const csvUrl = `https://docs.google.com/spreadsheets/d/e/2PACX-1vRLnytTHTeCyJyQTKSC82h7zji6PqCPmG2gz-0-gvYFeop-iEhvFXnwi-EOGHQJyVqhlIbneHLTUinL/pub?gid=0&single=true&output=csv&t=${Date.now()}`;
     setLoadingSheet(true);
     Papa.parse<ProductRow>(csvUrl, {
       download: true,
@@ -56,7 +57,7 @@ export default function InboundScan() {
         setLoadingSheet(false);
       },
     });
-  }, []);
+  }, [reloadKey]);
 
   const handleDetected = useCallback(
     (barcodeText: string) => {
@@ -217,7 +218,7 @@ export default function InboundScan() {
                   번호
                 </div>
                 <div className="inbound-scan__column inbound-scan__column--name">
-                  제품명
+                  상품명
                 </div>
                 <div className="inbound-scan__column inbound-scan__column--current">
                   현재고
