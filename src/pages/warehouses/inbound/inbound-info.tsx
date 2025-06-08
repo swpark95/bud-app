@@ -13,7 +13,7 @@ import {
   SOURCES,
   ScannedItem,
 } from "../../../constants/warehouses";
-
+console.log("branch test");
 // InboundResult에서 사용할 ResultItem 타입을 여기에도 정의
 interface ResultItem extends ScannedItem {
   expirationDate: string;
@@ -77,17 +77,15 @@ export default function InboundInfo() {
     }
   );
 
-  const [quantityArray, setQuantityArray] = useState<number[]>(
-    () => {
-      if (
-        state?.quantityArray &&
-        state.quantityArray.length === scannedItems.length
-      ) {
-        return [...state.quantityArray];
-      }
-      return Array(scannedItems.length).fill(0);
+  const [quantityArray, setQuantityArray] = useState<number[]>(() => {
+    if (
+      state?.quantityArray &&
+      state.quantityArray.length === scannedItems.length
+    ) {
+      return [...state.quantityArray];
     }
-  );
+    return Array(scannedItems.length).fill(0);
+  });
 
   const [currentIndex, setCurrentIndex] = useState<number>(0);
 
@@ -227,9 +225,7 @@ export default function InboundInfo() {
   return (
     <div className="inbound-info">
       <header className="warehouse__header">
-        <h1 className="warehouse__title">
-          {warehouse.label} / 입고 정보
-        </h1>
+        <h1 className="warehouse__title">{warehouse.label} / 입고 정보</h1>
         <Link to="/warehouses" className="warehouse__restart-btn">
           앱 재시작
         </Link>
