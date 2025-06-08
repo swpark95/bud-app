@@ -43,7 +43,7 @@ export default function InboundResult() {
 
   // Apps Script 웹앱 배포 URL (doPost가 handle)
   const SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycbygm9gZPiVR_CQgc02YvM9DEZvOHxeCGp9T0TGU93OM0q-3O5X_mkZD3sl9tdu6APx4vQ/exec";
+    "https://script.google.com/macros/s/AKfycbxA-1TMDF3XpYXDeb_4HM-pIQKxIOYPGGnnUCRMUGmgRIJnOrXey49KLC8qknw6ElBWoA/exec";
 
   // 완료 버튼 클릭 시 실행될 함수 (hidden iframe + load 이벤트)
   const handleFinish = () => {

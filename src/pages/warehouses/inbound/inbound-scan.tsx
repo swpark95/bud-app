@@ -43,7 +43,7 @@ export default function InboundScan() {
   }, []);
 
   useEffect(() => {
-    const csvUrl = `https://docs.google.com/spreadsheets/d/e/2PACX-1vRLnytTHTeCyJyQTKSC82h7zji6PqCPmG2gz-0-gvYFeop-iEhvFXnwi-EOGHQJyVqhlIbneHLTUinL/pub?gid=0&single=true&output=csv&t=${Date.now()}`;
+    const csvUrl = `https://docs.google.com/spreadsheets/d/e/2PACX-1vRLnytTHTeCyJyQTKSC82h7zji6PqCPmG2gz-0-gvYFeop-iEhvFXnwi-EOGHQJyVqhlIbneHLTUinL/pub?gid=0&single=true&output=csv`;
     setLoadingSheet(true);
     Papa.parse<ProductRow>(csvUrl, {
       download: true,
