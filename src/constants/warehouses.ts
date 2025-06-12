@@ -11,7 +11,6 @@ export const SOURCES = [
 ];
 
 export interface ScannedItem {
-  id: string;
   name: string;
   stock: string;
   size: string;
@@ -20,23 +19,29 @@ export interface ScannedItem {
   source: string;
   dest: string;
 }
-// — 테스트용 초기 데이터 (없어도 무방, 컴포넌트에서 빈 배열로 시작해도 됩니다) —
-//    나중에 실제 스캔 로직이 붙으면 컴포넌트 안에서 setScannedItems([...]) 해 줄 예정입니다.
-export const INITIAL_SCANNED_ITEMS: ScannedItem[] = [
-  // 필요하다면 더미 데이터를 추가로 넣으세요.
-];
 
-// — 상태 업데이트용 순수 함수 —
-//    scannedItems 배열에서 특정 id를 제거한 새 배열을 반환합니다.
+export interface ParentItem {
+  name: string;
+  stock: string;
+  size: string;
+  barcode: string;
+  category: string;
+}
+
+export interface ResultItem extends ScannedItem {
+  expirationDate: string;
+  manufactureDate: string;
+  quantity: number;
+}
+
 export function removeScannedItemById(
   items: ScannedItem[],
   idToRemove: string
 ): ScannedItem[] {
-  return items.filter((it) => it.id !== idToRemove);
+  return items.filter((it) => it.name !== idToRemove);
 }
 
 export interface ProductRow {
-  ID: string;
   상품명: string;
   현재고: string;
   유통기한: string;
@@ -50,9 +55,9 @@ export interface AddManualProps {
   visible: boolean;
   onClose: () => void;
   onAdd: (item: ScannedItem) => void;
-  googleProducts: ProductRow[];
   sourceLabel: string;
   destLabel: string;
+  parentItem: ParentItem[];
 }
 
 export interface CreateNewProps {
@@ -62,4 +67,15 @@ export interface CreateNewProps {
   sourceLabel: string;
   destLabel: string;
   productCategories: string[];
+}
+
+// ResultItem: ScannedItem에 유통기한, 제조일자, 수량 정보를 추가한 타입
+
+// InboundInfo로부터 넘어올 때 받게 될 state 정의
+export interface LocationState {
+  scannedItems: ResultItem[];
+  selectedDate?: ("유통기한" | "제조일자")[];
+  expirationDate?: string[];
+  manufactureDate?: string[];
+  quantity?: number[];
 }

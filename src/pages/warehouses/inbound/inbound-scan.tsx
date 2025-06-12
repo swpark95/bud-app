@@ -1,15 +1,14 @@
-// src/pages/warehouses/inbound-scan.tsx
-
+// src/pages/warehouses/inbound/inbound-scan.tsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Navigate, useNavigate, Link } from "react-router-dom";
-import Papa from "papaparse";
+import { db } from "../../../firebaseApp";
+import { collection, query, onSnapshot } from "firebase/firestore";
 import {
   WAREHOUSES,
   SOURCES,
   ScannedItem,
-  INITIAL_SCANNED_ITEMS,
+  ParentItem,
   removeScannedItemById,
-  ProductRow,
 } from "../../../constants/warehouses";
 import BarcodeScanner, { BarcodeScannerHandle } from "../barcodescanner";
 import AddManual from "../addmanual";
@@ -18,18 +17,35 @@ export default function InboundScan() {
   const { whId, sId } = useParams<"whId" | "sId">();
   const navigate = useNavigate();
 
-  const [googleProducts, setGoogleProducts] = useState<ProductRow[]>([]);
-  const [loadingSheet, setLoadingSheet] = useState<boolean>(true);
-  const [reloadKey, setReloadKey] = useState<number>(0);
-  const [scannedItems, setScannedItems] = useState<ScannedItem[]>(
-    INITIAL_SCANNED_ITEMS
-  );
-
+  // 기존 재고 요약 불러오기
+  const [parentItem, setSummaryItems] = useState<ParentItem[]>([]);
+  const [loadingSummary, setLoadingSummary] = useState<boolean>(true);
+  useEffect(() => {
+    if (!whId) return;
+    setLoadingSummary(true);
+    const q = query(collection(db, "parentitem"));
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        console.log("[InboundScan] snapshot docs:", snap.docs.length);
+        setSummaryItems(snap.docs.map((doc) => doc.data() as ParentItem));
+        setLoadingSummary(false);
+      },
+      (err) => {
+        console.error("[InboundScan] snapshot error:", err);
+        setLoadingSummary(false);
+      }
+    );
+    return () => unsub();
+  }, [whId]);
+  console.log("whId:", whId);
+  // 스캔된 항목
+  const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const sourceLabel =
     SOURCES.find((src) => src.id === sId)?.label || sId || "출발지";
 
-  const [showScanner, setShowScanner] = useState<boolean>(false);
-  const pauseRef = useRef<boolean>(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const pauseRef = useRef(false);
   useEffect(() => {
     pauseRef.current = false;
   }, []);
@@ -39,96 +55,62 @@ export default function InboundScan() {
   const handleAddManual = useCallback((item: ScannedItem) => {
     setScannedItems((prev) => [item, ...prev]);
     setShowManual(false);
-    setReloadKey((k) => k + 1);
   }, []);
-
-  useEffect(() => {
-    const csvUrl = `https://docs.google.com/spreadsheets/d/e/2PACX-1vRLnytTHTeCyJyQTKSC82h7zji6PqCPmG2gz-0-gvYFeop-iEhvFXnwi-EOGHQJyVqhlIbneHLTUinL/pub?gid=0&single=true&output=csv&t=${Date.now()}`;
-    setLoadingSheet(true);
-    Papa.parse<ProductRow>(csvUrl, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        setGoogleProducts(results.data);
-        setLoadingSheet(false);
-      },
-      error: () => {
-        setLoadingSheet(false);
-      },
-    });
-  }, [reloadKey]);
 
   const handleDetected = useCallback(
     (barcodeText: string) => {
       if (pauseRef.current) return;
-      if (loadingSheet || googleProducts.length === 0) return;
+      const clean = barcodeText.trim().replace(/[^\d]/g, ""); // ← 수정된 정규식
 
-      const rawScanned = barcodeText.trim();
-      const cleanScanned = rawScanned.replace(/[^\d]/g, "");
-
-      if (scannedItems.find((it) => it.barcode === cleanScanned)) {
-        alert(`이미 추가된 바코드입니다: ${cleanScanned}`);
+      // 중복 검사
+      if (scannedItems.some((it) => it.barcode === clean)) {
+        alert(`이미 추가된 바코드입니다: ${clean}`);
         scannerRef.current?.stop();
         setShowScanner(false);
         return;
       }
 
-      const found = googleProducts.find((prod) => {
-        const rawProd = (prod.바코드 ?? "").trim();
-        const cleanProd = rawProd.replace(/[^\d]/g, "");
-        return cleanProd === cleanScanned;
-      });
-
+      // 요약 재고에 있는지 확인
+      const found = parentItem.find((it) => it.barcode === clean);
       if (!found) {
-        alert(`스프레드시트에 등록되지 않은 바코드입니다: ${cleanScanned}`);
+        alert(`존재하지 않는 제품 바코드입니다: ${clean}`);
         scannerRef.current?.stop();
         setShowScanner(false);
         return;
       }
 
-      const warehouseLabel =
-        WAREHOUSES.find((w) => w.id === whId)?.label ?? whId ?? "";
-
+      const warehouseLabel = WAREHOUSES.find((w) => w.id === whId)?.label || "";
       const newItem: ScannedItem = {
-        id: (found.ID ?? "").trim(),
-        name: (found.상품명 ?? "").trim(),
-        stock: (found.현재고 ?? "").trim(),
-        size: (found.규격 ?? "").trim(),
-        barcode: cleanScanned,
-        category: (found.카테고리 ?? "").trim(),
+        name: found.name,
+        stock: found.stock || "",
+        size: found.size || "",
+        barcode: found.barcode,
+        category: found.category || "",
         source: sourceLabel,
         dest: warehouseLabel,
       };
-
       setScannedItems((prev) => [newItem, ...prev]);
       scannerRef.current?.stop();
       setShowScanner(false);
     },
-    [googleProducts, loadingSheet, scannedItems, sourceLabel, whId]
+    [parentItem, scannedItems, sourceLabel, whId]
   );
 
   const handleError = useCallback((err: Error) => {
     console.error("[InboundScan] 스캔 에러:", err);
   }, []);
 
-  const handleRemove = (idToRemove: string) => {
-    setScannedItems((prev) => removeScannedItemById(prev, idToRemove));
+  const handleRemove = (id: string) => {
+    setScannedItems((prev) => removeScannedItemById(prev, id));
   };
-
-  const confirmRemove = (idToRemove: string, itemName: string) => {
-    const message = `'${itemName}'\n해당 물품이 목록에서 제거됩니다.\n계속하시겠습니까?`;
-    if (window.confirm(message)) {
-      handleRemove(idToRemove);
+  const confirmRemove = (name: string) => {
+    if (window.confirm(`'${name}' 제거하시겠습니까?`)) {
+      handleRemove(name);
     }
   };
 
   const warehouse = WAREHOUSES.find((w) => w.id === whId);
-  if (!warehouse) {
-    return <Navigate to="/warehouses" replace />;
-  }
-
-  const warehouseLabel = warehouse.label;
+  if (!warehouse) return <Navigate to="/warehouses" replace />;
 
   const toggleScanner = () => {
     if (showScanner) {
@@ -141,20 +123,14 @@ export default function InboundScan() {
 
   const handleBackClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (scannedItems.length > 0) {
-      const message =
-        "현재까지 스캔한 정보가 저장되지 않았습니다.\n" +
-        "이 페이지를 벗어나면 스캔한 물품이 모두 삭제됩니다.\n" +
-        "그래도 나가시겠습니까?";
-      if (window.confirm(message)) {
-        navigate(`/warehouses/${whId}/inbound`);
-      }
-    } else {
-      navigate(`/warehouses/${whId}/inbound`);
+    if (
+      scannedItems.length &&
+      !window.confirm("지금 나가시면 스캔 데이터가 삭제됩니다. 계속?")
+    ) {
+      return;
     }
+    navigate(`/warehouses/${whId}/inbound`);
   };
-
-  const openManual = () => setShowManual(true);
 
   return (
     <div className="inbound-scan">
@@ -166,10 +142,10 @@ export default function InboundScan() {
       </header>
       <div className="inbound-scan__content">
         <div>
-          {loadingSheet ? (
-            <p>스프레드시트 데이터 불러오는 중…</p>
+          {loadingSummary ? (
+            <p>데이터 불러오는 중…</p>
           ) : (
-            <p>총 상품 개수: {googleProducts.length}개</p>
+            <p>총 상품 개수: {parentItem.length}개</p>
           )}
         </div>
         <button
@@ -205,7 +181,7 @@ export default function InboundScan() {
             <span
               className="add-manual"
               style={{ cursor: "pointer", color: "#377fd3" }}
-              onClick={openManual}
+              onClick={() => setShowManual(true)}
             >
               + 직접 추가하기
             </span>
@@ -247,10 +223,13 @@ export default function InboundScan() {
                 </div>
               ) : (
                 scannedItems.map((item, idx) => (
-                  <div key={`${item.id}-${idx}`} className="inbound-scan__row">
+                  <div
+                    key={item.barcode || `${item.name}-${idx}`}
+                    className="inbound-scan__row"
+                  >
                     <div className="inbound-scan__cell inbound-scan__cell--icon">
                       <span
-                        onClick={() => confirmRemove(item.id, item.name)}
+                        onClick={() => confirmRemove(item.name)}
                         style={{ cursor: "pointer" }}
                       >
                         🗑️
@@ -280,9 +259,9 @@ export default function InboundScan() {
         visible={showManual}
         onClose={() => setShowManual(false)}
         onAdd={handleAddManual}
-        googleProducts={googleProducts}
         sourceLabel={sourceLabel}
-        destLabel={warehouseLabel}
+        destLabel={warehouse.label}
+        parentItem={parentItem}
       />
 
       <footer className="warehouse__footer">
